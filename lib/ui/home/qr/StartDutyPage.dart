@@ -15,12 +15,22 @@ import '../camera/TakePhotoPageViewModel.dart';
 import '../home/HomePage.dart';
 
 class StartDutyPage extends StatelessWidget {
+
+  final String? dutyID;
+  final String? roomID;
+
   final ITTDCameraService? _cameraService = TTDServiceLocator().get<ITTDCameraService>();
-  final takePhotoViewModel = Get.put(TakePhotoPageViewModel()); // TakePhotoPageViewModel'i kullanıyoruz
+  final takePhotoViewModel = Get.put(TakePhotoPageViewModel());
   late StartDutyPageViewModel _startDutyPageViewModel;
+
+  StartDutyPage({
+    this.dutyID,
+    this.roomID
+});
 
   @override
   Widget build(BuildContext context) {
+
     _startDutyPageViewModel = Get.put(StartDutyPageViewModel());
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -64,18 +74,34 @@ class StartDutyPage extends StatelessWidget {
                       String? id = uri.queryParameters['id'];
                       if (id != null) {
                         print("ID Değeri: $id");
-                        await takePhotoViewModel.getDutyFromRoomId(id); // roomId'yi gönderiyoruz
-                        if (takePhotoViewModel.roomInfo?.status == false) {
-                          Fluttertoast.showToast(
-                            msg: "Görev Başlatılamaz. Lütfen Yetkiliye Başvurun.",
-                            toastLength: Toast.LENGTH_LONG,
-                            gravity: ToastGravity.BOTTOM,
-                            backgroundColor: Colors.red,
-                            textColor: Colors.white,
-                          );
-                          TTDNavigator().pushToMain(HomePage()); // HomePage'e yönlendiriyoruz
-                        } else {
-                          _startDutyPageViewModel.gotoPhoto(id);
+                        if(dutyID != null)
+                        {
+                          await takePhotoViewModel.getDutyByDutyId(dutyID!);
+                        }
+                        else
+                        {
+                          if(roomID != null)
+                          {
+                            await takePhotoViewModel.getDutyFromRoomId(roomID!);
+                          }
+                          else
+                          {
+                            await takePhotoViewModel.getDutyFromRoomId(id);
+                            var gidecekDutyId = takePhotoViewModel.roomInfo.first.id;
+                            await takePhotoViewModel.getDutyByDutyId(gidecekDutyId!);
+                            if (takePhotoViewModel.dutyList.first.status == false) {
+                              Fluttertoast.showToast(
+                                msg: "Görev Başlatılamaz. Lütfen Yetkiliye Başvurun.",
+                                toastLength: Toast.LENGTH_LONG,
+                                gravity: ToastGravity.BOTTOM,
+                                backgroundColor: Colors.red,
+                                textColor: Colors.white,
+                              );
+                              TTDNavigator().pushToMain(HomePage());
+                            } else {
+                              _startDutyPageViewModel.gotoPhoto(gidecekDutyId);
+                            }
+                          }
                         }
                       } else {
                         print("ID parametresi bulunamadı.");
@@ -83,7 +109,19 @@ class StartDutyPage extends StatelessWidget {
                     }
                   }
 
-                  //_startDutyPageViewModel.gotoPhoto("672a6ae08b60fc8409222328");
+                  /*if (takePhotoViewModel.dutyList.first.status == false) {
+                    Fluttertoast.showToast(
+                      msg: "Görev Başlatılamaz. Lütfen Yetkiliye Başvurun.",
+                      toastLength: Toast.LENGTH_LONG,
+                      gravity: ToastGravity.BOTTOM,
+                      backgroundColor: Colors.red,
+                      textColor: Colors.white,
+                    );
+                    TTDNavigator().pushToMain(HomePage()); // HomePage'e yönlendiriyoruz
+                  } else {
+                    _startDutyPageViewModel.gotoPhoto(dutyID!);
+                  }*/
+                  //_startDutyPageViewModel.gotoPhoto("67b7a6643d13b0f88116f4a9");
 
                 },
                 style: ElevatedButton.styleFrom(

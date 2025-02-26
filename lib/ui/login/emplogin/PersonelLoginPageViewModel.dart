@@ -19,6 +19,7 @@ import 'package:ttd/utils/servicelocator/TTDServiceLocator.dart';
 
 import '../../../models/rest/requests/emplogin/EmpLoginRequest.dart';
 import '../../../rest/emp/PersonnelRestService.dart';
+import '../../home/components/BottomNavigation.dart';
 import 'PersonelLoginPage.dart';
 
 
@@ -120,11 +121,10 @@ class PersonelLoginPageViewModel extends ViewModelBase {
               textColor: Colors.white,
               fontSize: 16.0
           );
-
         }
         else
         {
-          TTDNavigator().pushToMain(NavigationPage());
+          Get.offAll(() => NavigationPage(initialTab: TabItem.home));
           await Fluttertoast.showToast(
               msg: "${response.message}",
               toastLength: Toast.LENGTH_LONG,
@@ -134,7 +134,6 @@ class PersonelLoginPageViewModel extends ViewModelBase {
               textColor: Colors.white,
               fontSize: 16.0
           );
-
         }
       }
       else
@@ -176,42 +175,61 @@ class PersonelLoginPageViewModel extends ViewModelBase {
       print("Alınan AuthModel verisi: $result");
 
       if (result == null || result.isEmpty) {
-        print("AuthModel verisi boş veya null, giriş sayfasına yönlendiriliyor.");
+        print("AuthModel verisi boş veya null.");
+        await _clearAuthData();
         return;
       }
 
       AuthModel authModel;
       try {
         authModel = AuthModel.fromJson(jsonDecode(result));
-      } catch (e) {
-        print("AuthModel ayrıştırma hatası: $e");
-        await _ittdSettingsRepository!.deleteSetting("AuthModel");
-        return;
-      }
+        
+        if (authModel.token == null || authModel.employeeId == null || authModel.expiration == null) {
+          print("Token, EmployeeId veya Expiration eksik.");
+          await _clearAuthData();
+          return;
+        }
 
-      if (authModel.expiration == null) {
-        print("Son kullanma tarihi null, lütfen tekrar giriş yapın.");
-        await _ittdSettingsRepository!.deleteSetting("AuthModel");
-        return;
-      }
+        // Token süresini kontrol et
+        DateTime now = DateTime.now();
+        DateTime expiration = DateTime.parse(authModel.expiration!);
 
-      DateTime now = DateTime.now();
-      DateTime expiration = DateTime.parse(authModel.expiration!);
+        if (now.isAfter(expiration)) {
+          print("Token süresi dolmuş. Expiration: ${authModel.expiration}");
+          await _clearAuthData();
+          return;
+        }
 
-      print("Şimdiki tarih: $now, Son kullanma tarihi: $expiration");
-      if (expiration.isAfter(now)) {
-        print("AuthModel verisi hala geçerli, ana sayfaya yönlendiriliyor.");
+        // Token hala geçerli, AuthModel'i set et
         TTDApplicationService.authModel = authModel;
-      } else {
-        print("AuthModel süresi dolmuş, temizleniyor ve giriş sayfasına yönlendiriliyor.");
-        await _ittdSettingsRepository!.deleteSetting("AuthModel");
-        TTDNavigator().pushToMain(PersonelLoginPage());
+        
+        // Vardiya kontrolü yap ve uygun sayfaya yönlendir
+        var shiftDialogShown = await _ittdSettingsRepository!.getSetting("startShiftDialogShown");
+        if(shiftDialogShown != "true") {
+          TTDNavigator().pushToMain(WorkingHourSystemPage());
+        } else {
+          Get.offAll(() => NavigationPage(initialTab: TabItem.home));
+        }
+
+      } catch (e) {
+        print("Token kontrol hatası: $e");
+        await _clearAuthData();
       }
     } catch (e) {
       print("controlRemember'da hata: $e");
-      await _ittdSettingsRepository!.deleteSetting("AuthModel");
+      await _clearAuthData();
     }
   }
+
+  // Auth verilerini temizleyen yardımcı metod
+  Future<void> _clearAuthData() async {
+    await _ittdSettingsRepository!.deleteSetting("AuthModel");
+    await _ittdSettingsRepository!.deleteSetting("RememberMe");
+    isRemembered.value = false;
+    TTDApplicationService.authModel = null;
+    TTDNavigator().pushToMain(PersonelLoginPage());
+  }
+
   void saveServerUrl(String serverUrl) async {
     try {
       await _ittdSettingsRepository!.addSetting("ServerUrl", serverUrl);

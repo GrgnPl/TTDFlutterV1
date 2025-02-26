@@ -1,11 +1,13 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
+import 'package:sizer/sizer.dart';
 import 'package:ttd/models/rest/responses/duty/dutyByEmployeeId/DutyByEmployeeId.dart';
 import 'package:ttd/models/rest/responses/hallway/Hallway.dart';
 import 'package:ttd/models/rest/responses/room/RoomDutyCount.dart';
@@ -34,7 +36,7 @@ import '../../../utils/servicelocator/TTDServiceLocator.dart';
 
 class HomePageViewModel extends GetxController {
   late ITTDPersonelRestService _personnelRestService;
-  late ITTDSettingsRepository? _ittdSettingsRepository = TTDServiceLocator().get<ITTDSettingsRepository>();
+  late ITTDSettingsRepository? _ittdSettingsRepository;
 
   RxList<DutyData?> dutyList = <DutyData>[].obs;
   RxList<TechninalError> technicalErrorList = <TechninalError>[].obs;
@@ -53,24 +55,76 @@ class HomePageViewModel extends GetxController {
   String? _employeeId;
   String? _branchId;
   String? _departmentId;
+  String? _employeeName;
 
   String? get employeeId => _employeeId;
+  String? get employeeName => _employeeName;
+
+  // Yükleme durumları için yeni değişkenler
+  var isInitializing = true.obs;
+  var hasError = false.obs;
+  var errorMessage = ''.obs;
+
+  // Tamamlanmayan görevler için sayaç
+  var uncompletedTaskCount = 0.obs;
+  var isLoadingUncompletedTasks = false.obs;
+
+  var completedTaskCount = 0.obs;
+  var tehcnicalTaskCount = 0.obs;
+
+  var isLoading = false.obs;
+  var isFirstLoad = true;
+
+  RxList<DutyByEmployeeId> rooms = <DutyByEmployeeId>[].obs;
+  RxList<DutyByEmployeeId> filteredRooms = <DutyByEmployeeId>[].obs;
 
   HomePageViewModel() {
     _personnelRestService = TTDServiceLocator().get<ITTDPersonelRestService>();
-    initPage();
+    _ittdSettingsRepository = TTDServiceLocator().get<ITTDSettingsRepository>();
   }
+
   @override
   void onInit() {
     super.onInit();
-    fetchNotificationCount(_employeeId ?? "");
+    if (isFirstLoad) {
+      initPage();
+      isFirstLoad = false;
+    }
+    filteredRooms.assignAll(rooms);
   }
+
   void initPage() async {
-    await controlRemember();
-    await fetchEmployeeInfoAndRooms();
+    try {
+      isLoading.value = true;
+      await controlRemember();
+      
+      if (_employeeId != null) {
+        print('Employee ID: $_employeeId'); // Debug için
+        await getEmployeeInfo(_employeeId!);
+        
+        if (_branchId != null) {
+          print('Branch ID: $_branchId'); // Debug için
+          await getRoomsByEmployeeId(_employeeId!);
+          await getDutyDetailsForDateByBranchId(_branchId!);
+        }
+        
+        if (_departmentId != null) {
+          await getTechnicalErrorByDeparmentId(_departmentId!);
+        }
+        
+        await fetchUncompletedTasks();
+        await fetchCompletedTasks();
+        await fetchNotificationCount(_employeeId!);
+      } else {
+        print('Employee ID null');
+      }
+    } catch (e) {
+      print('Error in initPage: $e');
+    } finally {
+      isLoading.value = false;
+      isFirstLoad = false;
+    }
   }
-
-
 
   Future<void> controlRemember() async {
     var rememberMe = await _ittdSettingsRepository!.getSetting("RememberMe");
@@ -103,6 +157,10 @@ class HomePageViewModel extends GetxController {
         {
          await getTechnicalErrorByDeparmentId(_departmentId!);
         }
+      else
+        {
+          print("departmentID boş");
+        }
     }
   }
 
@@ -111,6 +169,10 @@ class HomePageViewModel extends GetxController {
       try {
         var queryParams = {'id': id};
         var response = await _personnelRestService!.getEmployeeInfo(queryParams);
+        var empName = response.firstName;
+        var empLastname = response.lastName;
+        var empNameAndLastName = "$empName $empLastname";
+        _employeeName = empNameAndLastName;
         _branchId = response.branchId;
         _departmentId = response.departmentId;
 
@@ -133,19 +195,12 @@ class HomePageViewModel extends GetxController {
     try {
       GetNotificationCountByEmpIdResponse response = await _personnelRestService.getNotificationCountByEmpId(queryParams);
 
-      print('Bildirim sayısı API yanıtı: ${response.data}');
-
       if (response != null && response.data != null) {
         var readNotificationsCount = response.data.where((notification) => notification.status == true).length;
-
         notificationCount.value = readNotificationsCount;
-        print("Güncellenen bildirim sayısı: $readNotificationsCount");
       } else {
         notificationCount.value = 0;
-        print("Bildirimler bulunamadı veya null döndü.");
       }
-
-      // Güncelleme sonunda update çağrılıyor
       update();
     } catch (e) {
       print("Error in fetchNotificationCount: $e");
@@ -153,72 +208,53 @@ class HomePageViewModel extends GetxController {
   }
 
   Future<void> getDutyDetailsForDateByBranchId(String branchId) async {
+    if (branchId.isEmpty) return;
+    
     try {
       var queryParams = {'id': branchId};
       var response = await _personnelRestService!.getDutyDetailsForDateByBranchId(queryParams);
 
-      if (response.listOfDuty != null && response.listOfDuty!.isNotEmpty) {
-        var nonNullDuties = response.listOfDuty!.where((duty) => duty != null).cast<DutyData>().toList();
+      if (response.listOfDuty != null) {
+        var nonNullDuties = response.listOfDuty!
+            .where((duty) => duty != null)
+            .cast<DutyData>()
+            .toList();
 
-        var filteredDuties = nonNullDuties.where((duty) {
-          return duty.employeeId?.any((employee) => employee.id == _employeeId) ?? false;
-        }).toList();
+        var filteredDutiesForAppoint = nonNullDuties.where((duty) =>
+            duty.employeeId?.isEmpty ?? true &&
+            duty.task!.any((task) => task.departmentId == _departmentId) ?? false).toList();
 
-        var filteredDutiesForAppoint = nonNullDuties.where((duty) {
-          return duty.employeeId != null && duty.employeeId!.isEmpty;
-        }).toList();
-
-        int appointedDuties = filteredDutiesForAppoint.where((duty) {
-          return duty.task?.any((task) => task.departmentId == _departmentId) ?? false;
-        }).length;
-
-        int completedDuties = filteredDuties.where((duty) => duty.status == false).length;
-        int notCompletedDuties = filteredDuties.where((duty) => duty.status == true).length;
-
+        // Sadece atanacak görevleri hesapla
         roomDutyCountList.value = [
-          RoomDutyCount(completedCount: completedDuties, uncompletedCount: notCompletedDuties, appointedCount: appointedDuties),
+          RoomDutyCount(
+            completedCount: 0, // Bu değer artık fetchCompletedTasks'dan gelecek
+            uncompletedCount: 0, // Bu değer fetchUncompletedTasks'dan geliyor
+            appointedCount: filteredDutiesForAppoint.length
+          ),
         ];
 
-        dutyList.assignAll(filteredDuties);
-      } else {
-        dutyList.assignAll([]);
-        roomDutyCountList.value = [RoomDutyCount(completedCount: 0, uncompletedCount: 0)];
-        print('Odalar listesi boş veya null');
+        dutyList.assignAll(nonNullDuties);
       }
     } catch (e) {
-      print('Görevler yüklenirken hata oluştu: $e');
-      //roomDutyCountError.value = true;
-      //roomDutyCountErrorMessage.value = "Görevler yüklenirken hata oluştu.";
-      errorCountList.value = [
-        TechninalErrorCount(completedCount: 0, uncompletedCount: 0)
-      ];
+      print('Error in getDutyDetailsForDateByBranchId: $e');
+      throw e;
     }
   }
+
   Future<void> getTechnicalErrorByDeparmentId(String departmentId) async {
     try {
       var queryParams = {'id': departmentId};
       var response = await _personnelRestService!.getTechnicalErrorByDeparmentId(queryParams);
-
       if (response.listOfTechnicalError != null && response.listOfTechnicalError!.isNotEmpty) {
+
         var filteredDuties = response.listOfTechnicalError!.where((technicalError) {
-          return technicalError.departmentId == _departmentId;
+          return technicalError.employeeName == _employeeName;
         }).toList();
 
-        // Tamamlanmayan ve tamamlanan teknik arızaları say
-        int completedTechnicalDuties = filteredDuties
-            .where((technicalError) => technicalError.status == true)
-            .length;
         int notCompletedTechnicalDuties = filteredDuties
             .where((technicalError) => technicalError.status == false)
             .length;
-
-        print("completedTechnicalDuties ${completedTechnicalDuties} notCompletedTechnicalDuties ${notCompletedTechnicalDuties}");
-        // Görev sayısını güncelle
-        errorCountList.value = [
-          TechninalErrorCount(completedCount: completedTechnicalDuties, uncompletedCount: notCompletedTechnicalDuties)
-        ];
-
-        // Teknik arıza listesini güncelle
+        tehcnicalTaskCount.value = notCompletedTechnicalDuties;
         technicalErrorList.assignAll(filteredDuties);
       } else {
         // Eğer liste boşsa
@@ -228,8 +264,6 @@ class HomePageViewModel extends GetxController {
       }
     } catch (e) {
       print('Teknik arızalar yüklenirken hata oluştu: $e');
-      //roomDutyCountError.value = true;
-      //roomDutyCountErrorMessage.value = "Teknik arızalar yüklenirken hata oluştu.";
       errorCountList.value = [
         TechninalErrorCount(completedCount: 0, uncompletedCount: 0)
       ];
@@ -241,21 +275,30 @@ class HomePageViewModel extends GetxController {
       isLoadingRooms.value = true;
       var queryParams = {'id': employee_id};
 
-
       var response = await _personnelRestService.getDutyByEmployeeId(queryParams);
 
-      print('API Response: $response');
-
       if (response.listOfDutyByEmpId != null && response.listOfDutyByEmpId!.isNotEmpty) {
-        roomList.assignAll(response.listOfDutyByEmpId!);
+        var uniqueRooms = <DutyByEmployeeId>[];
+        var seenRoomIds = <String>{};
+        
+        for (var room in response.listOfDutyByEmpId!) {
+          if (room.id != null && !seenRoomIds.contains(room.id)) {
+            seenRoomIds.add(room.id!);
+            uniqueRooms.add(room);
+          }
+        }
+        roomList.assignAll(uniqueRooms);
+        rooms.assignAll(uniqueRooms);
+        filteredRooms.assignAll(uniqueRooms);
       } else {
-        roomList.assignAll([]);
-        print('Odalar listesi boş veya null');
+        print('Oda listesi boş geldi');
+        roomList.clear();
+        rooms.clear();
+        filteredRooms.clear();
       }
     } catch (e, stacktrace) {
-      print('Error fetching rooms by branch ID: $e');
+      print('Error fetching rooms by employee ID: $e');
       print('StackTrace: $stacktrace');
-
       roomDutyCountError.value = true;
       roomDutyCountErrorMessage.value = "Odalar yüklenirken hata oluştu. Hata mesajı: $e";
     } finally {
@@ -263,33 +306,34 @@ class HomePageViewModel extends GetxController {
     }
   }
 
-  Future<RoomDuty?> getRoomDutyWithTasks(String roomId) async {
+  Future<List<RoomDuty>> getRoomDutyWithTasks(String roomId) async {
     try {
       var queryParams = {'id': roomId};
       RoomDutyListResponse response = await _personnelRestService.getDutyFromRoomId(queryParams);
-      print("Response: $response");
 
-      if (response != null && response.listOfRoomDuty != null && response.listOfRoomDuty!.isNotEmpty) {
-        // İlk RoomDuty nesnesini alıyoruz (Örneğin listede tek bir oda görevi olduğunu varsayıyoruz)
-        return response.listOfRoomDuty!.first;
+      if (response != null && response.listOfRoomDuty != null) {
+        return response.listOfRoomDuty!;
       } else {
-        print("Oda görevi bulunamadı");
-        return null;
+        return [];
       }
     } catch (e) {
       print('Error fetching room duty with tasks for room: $e');
-      return null;
+      return [];
     }
   }
 
   Future<void> refreshRoomDutyCounts() async {
+    if (isInitializing.value) return; // Zaten yükleniyorsa tekrar yükleme
+
     roomDutyCountLoading.value = true;
     roomDutyCountError.value = false;
 
     try {
-      if (_branchId != null && _employeeId != null && _departmentId != null) {
-        await getDutyDetailsForDateByBranchId(_branchId!);
-        await getTechnicalErrorByDeparmentId(_departmentId!);
+      if (_branchId != null && _departmentId != null) {
+        await Future.wait([
+          getDutyDetailsForDateByBranchId(_branchId!),
+          getTechnicalErrorByDeparmentId(_departmentId!),
+        ]);
       }
     } catch (e) {
       roomDutyCountError.value = true;
@@ -308,9 +352,7 @@ class HomePageViewModel extends GetxController {
 
       if (response != null && response.listOfRoomDuty != null) {
         print("Gelen Response Oda Görevi ${response.listOfRoomDuty!.length}");
-
         List<Tasks> activeTasks = [];
-
         for (var duty in response.listOfRoomDuty!) {
           if (duty.task != null && duty.task.isNotEmpty && duty.status == true) {
             for (var task in duty.task) {
@@ -367,6 +409,202 @@ class HomePageViewModel extends GetxController {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Mola talebi gönderilemedi: $error")),
       );
+    }
+  }
+
+  Future<void> fetchUncompletedTasks() async {
+    if (_branchId == null || _employeeId == null) {
+        print('Branch ID veya Employee ID null. İşlem iptal edildi.');
+        return;
+    }
+    else
+      {
+        print("bos emp ve branch");
+      }
+    isLoadingUncompletedTasks.value = true;
+    try {
+        var queryParams = {
+            'id': _branchId,
+            'empId': _employeeId,
+        };
+        print("gidecek Query : $queryParams");
+
+        final response = await _personnelRestService.getDutyForNowByBranchAndEmpId(queryParams);
+        print(" Tamamlanmayan Gorevler Response $response");
+        if (response.success == true && response.data != null) {
+            print('Görev listesi uzunluğu Tamamlanmayan Görevler: ${response.data!.length}');
+
+            uncompletedTaskCount.value = response.data!.length;
+        } else {
+            print('API yanıtı başarısız veya data null. Response: $response');
+        }
+    } catch (e, stackTrace) {
+        print('Tamamlanmayan görevler yüklenirken hata: $e');
+        print('Stack trace: $stackTrace');
+        Get.snackbar(
+            'Hata',
+            'Tamamlanmayan görevler yüklenirken bir hata oluştu',
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
+        );
+    } finally {
+        isLoadingUncompletedTasks.value = false;
+    }
+  }
+
+  Future<void> fetchCompletedTasks() async {
+    if (_branchId == null || _employeeId == null) {
+      print('Branch ID veya Employee ID null. İşlem iptal edildi.');
+      return;
+    }
+    isLoadingUncompletedTasks.value = true;
+    try {
+      var queryParams = {
+        'id': _branchId,
+        'empId': _employeeId,
+      };
+
+      final response = await _personnelRestService.getDutyForNowByBranchAndEmpIdForPassive(queryParams);
+      if (response.success == true && response.data != null) {
+        print('Görev listesi uzunluğu Tamamlanan Görevler: ${response.data!.length}');
+
+        completedTaskCount.value = response.data!.length;
+      } else {
+        print('API yanıtı başarısız veya data null. Response: $response');
+      }
+    } catch (e, stackTrace) {
+      print('Tamamlanan görevler yüklenirken hata: $e');
+      print('Stack trace: $stackTrace');
+      Get.snackbar(
+        'Hata',
+        'Tamamlanmayan görevler yüklenirken bir hata oluştu',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    } finally {
+      isLoadingUncompletedTasks.value = false;
+    }
+  }
+
+  // Manuel yenileme için
+  Future<void> refreshData() async {
+    if (!isLoading.value) {
+      await fetchEmployeeInfoAndRooms();
+      await fetchCompletedTasks();
+      await fetchUncompletedTasks();
+    }
+  }
+
+  void showBreakRequestDialog(BuildContext context) {
+    TextEditingController breakDescriptionController = TextEditingController();
+    TextEditingController breakTimeController = TextEditingController();
+    TextEditingController breakDateController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          title: Text(
+            "Mola Talebi Oluştur",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: breakDescriptionController,
+                decoration: InputDecoration(
+                  labelText: "Mola Açıklaması",
+                  labelStyle: TextStyle(color: Color(0xFF172a31)),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF172a31)),
+                  ),
+                ),
+                cursorColor: Color(0xFF172a31),
+              ),
+              TextField(
+                controller: breakTimeController,
+                decoration: InputDecoration(
+                  labelText: "Süresi (dk)",
+                  labelStyle: TextStyle(color: Color(0xFF172a31)),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF172a31)),
+                  ),
+                ),
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                cursorColor: Color(0xFF172a31),
+              ),
+              TextField(
+                controller: breakDateController,
+                decoration: InputDecoration(
+                  labelText: "Gün",
+                  suffixIcon: Icon(Icons.calendar_today, color: Color(0xFF172a31)),
+                  labelStyle: TextStyle(color: Color(0xFF172a31)),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF172a31)),
+                  ),
+                ),
+                onTap: () async {
+                  DateTime? selectedDate = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime(2101),
+                  );
+                  if (selectedDate != null) {
+                    breakDateController.text = DateFormat('yyyy-MM-dd').format(selectedDate);
+                  }
+                },
+                readOnly: true,
+                cursorColor: Color(0xFF172a31),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text("İptal", style: TextStyle(color: Color(0xFF172a31))),
+            ),
+            TextButton(
+              onPressed: () {
+                if (breakDescriptionController.text.isEmpty ||
+                    breakTimeController.text.isEmpty ||
+                    breakDateController.text.isEmpty) {
+                  Fluttertoast.showToast(
+                    msg: "Tüm alanları doldurunuz",
+                    backgroundColor: Colors.red,
+                    textColor: Colors.white,
+                  );
+                  return;
+                }
+
+                submitBreakRequest(
+                  context,
+                  breakDescriptionController.text,
+                  breakTimeController.text,
+                  breakDateController.text,
+                );
+
+                breakDescriptionController.clear();
+                breakTimeController.clear();
+                breakDateController.clear();
+              },
+              child: Text("Gönder", style: TextStyle(color: Color(0xFF172a31))),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void searchRooms(String query) {
+    if (query.isEmpty) {
+      filteredRooms.assignAll(rooms);
+    } else {
+      filteredRooms.assignAll(rooms.where((room) =>
+          (room.roomName?.toLowerCase().contains(query.toLowerCase()) ?? false)));
     }
   }
 

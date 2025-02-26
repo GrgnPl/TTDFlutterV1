@@ -2,14 +2,20 @@ import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:ttd/ui/home/duty/DutyPage.dart';
 import 'package:ttd/ui/home/finishDuty/AfterDutyListPage.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 import '../../../data/settings/TTDSettingsRepository.dart';
 import '../../../models/domain/common/AuthModel.dart';
 import '../../../models/domain/common/LoginModel.dart';
 import '../../../models/rest/requests/dutyImage/DutyImageBeforeRequest.dart';
+import '../../../models/rest/responses/duty/dutyByEmployeeId/DutyByEmployeeId.dart';
+import '../../../models/rest/responses/duty/dutyById/DutyByIdResponse.dart';
 import '../../../models/rest/responses/duty/roomDuty/RoomDuty.dart';
+import '../../../models/rest/responses/duty/roomDuty/RoomDutyListResponse.dart';
 import '../../../rest/emp/PersonnelRestService.dart';
 import '../../../services/common/TTDApplicationService.dart';
 import '../../../utils/navigation/TTDNavigator.dart';
@@ -20,21 +26,30 @@ import '../dutyList/BeforeDutyListPage.dart';
 class TakePhotoPageViewModel extends ViewModelBase {
   late ITTDPersonelRestService? _personnelRestService = TTDServiceLocator().get<ITTDPersonelRestService>();
   late ITTDSettingsRepository? _ittdSettingsRepository = TTDServiceLocator().get<ITTDSettingsRepository>();
-  RoomDuty? _roomInfo;  // Private field
-  String? _dutyID;
+
   String? _employeeId;
+  String? _dutyId;
+
+  RxList<DutyByIdResponse> dutyList = <DutyByIdResponse>[].obs;
+  RxList<RoomDuty> roomInfo = <RoomDuty>[].obs;
 
   String? get employeeId => _employeeId;
-  RoomDuty? get roomInfo => _roomInfo;  // Public getter
-  String? get dutyInfo => _dutyID;  // Public getter
+  String? get dutyId => _dutyId;
+
+  final isUploading = false.obs;
 
   TakePhotoPageViewModel() {
     initPage();
   }
 
-  initPage() async {
-    await controlRemember();
-    await fetch();
+  void initPage() async {
+    try {
+      await controlRemember();
+      print('Employee ID set: $_employeeId'); // Debug için
+      await fetch();
+    } catch (e) {
+      print('InitPage error: $e');
+    }
   }
 
   Future<void> fetch() async {
@@ -48,21 +63,27 @@ class TakePhotoPageViewModel extends ViewModelBase {
   }
 
   Future<void> controlRemember() async {
-    var rememberMe = await _ittdSettingsRepository!.getSetting("RememberMe");
-    if (rememberMe != null && jsonDecode(rememberMe)) {
-      var result = await _ittdSettingsRepository!.getSetting("AuthModel");
-      if (result != null) {
-        AuthModel authModel = AuthModel.fromJson(jsonDecode(result));
-        TTDApplicationService.authModel = authModel;
-        _employeeId = authModel.employeeId;
-      }
-    } else {
-      LoginModel? loginModel = TTDApplicationService.loginModel;
-      if (loginModel != null) {
-        _employeeId = loginModel.employeeId;
+    try {
+      var rememberMe = await _ittdSettingsRepository!.getSetting("RememberMe");
+      if (rememberMe != null && jsonDecode(rememberMe)) {
+        var result = await _ittdSettingsRepository!.getSetting("AuthModel");
+        if (result != null) {
+          AuthModel authModel = AuthModel.fromJson(jsonDecode(result));
+          TTDApplicationService.authModel = authModel;
+          _employeeId = authModel.employeeId;
+          print('AuthModel employee ID: ${authModel.employeeId}');
+        }
       } else {
-        print("LoginModel bulunamadı. Kullanıcı giriş yapmalıdır.");
+        LoginModel? loginModel = TTDApplicationService.loginModel;
+        if (loginModel != null) {
+          _employeeId = loginModel.employeeId;
+          print('LoginModel employee ID: ${loginModel.employeeId}');
+        } else {
+          print("LoginModel bulunamadı. Kullanıcı giriş yapmalıdır.");
+        }
       }
+    } catch (e) {
+      print('ControlRemember error: $e');
     }
   }
 
@@ -75,12 +96,38 @@ class TakePhotoPageViewModel extends ViewModelBase {
     }
   }
 
+  Future<File?> compressImage(File file) async {
+    try {
+      final filePath = file.absolute.path;
+      final lastIndex = filePath.lastIndexOf('.');
+      final outPath = '${filePath.substring(0, lastIndex)}_compressed.jpg';
+      
+      var result = await FlutterImageCompress.compressAndGetFile(
+        file.absolute.path,
+        outPath,
+        quality: 85,
+        minWidth: 1280,
+        minHeight: 960,
+        rotate: 0,
+      );
 
-  Future<void> processImageUpload(String roomId, File image, int imageNumber) async {
-    await getDutyFromRoomId(roomId);
+      if (result != null) {
+        final compressedSize = await result.length();
+        print('Sıkıştırılmış dosya boyutu: ${compressedSize / 1024}KB');
+        return File(result.path);
+      }
+      return null;
+    } catch (e) {
+      print('Resim sıkıştırma hatası: $e');
+      return null;
+    }
+  }
 
-    if (_roomInfo?.id != null) {
-      await uploadImage(_roomInfo!.id!, image, imageNumber);
+  Future<void> processImageUpload(String dutyId, File image, int imageNumber) async {
+    await getDutyByDutyId(dutyId);
+
+    if (dutyId != null) {
+      await uploadImage(dutyId, image, imageNumber);
     } else {
       print("Duty ID alınamadı, resim yükleme başarısız.");
     }
@@ -89,49 +136,179 @@ class TakePhotoPageViewModel extends ViewModelBase {
   Future<void> getDutyFromRoomId(String roomId) async {
     if (_personnelRestService != null) {
       try {
+
+        print('Gidecek Room ID: $roomId'); // Debug için
+        print("employeeIdPHoto : $_employeeId");
         var queryParams = {'id': roomId};
         var response = await _personnelRestService!.getDutyFromRoomId(queryParams);
 
-        if (response?.listOfRoomDuty != null && response!.listOfRoomDuty!.isNotEmpty) {
-          //_roomInfo = response.listOfRoomDuty!.first;
-          _roomInfo = response.listOfRoomDuty!.where((element){
-            return element.employeeName.any((employee) => employee.id == _employeeId);
-          }).first;
-          print('Duty ID: ${_roomInfo?.id}');
+        if (response!=null) {
+          try {
+            var roomDuties = response.listOfRoomDuty?.where((duty) =>
+            duty.id?.isNotEmpty == true && duty.employeeName!.any((employee) => employee.id == _employeeId) ?? false).toList();
+            roomInfo.clear();
+            roomInfo.assignAll(roomDuties!);
+            print(roomDuties);
+            if (roomDuties!.isNotEmpty) {
+              print("roomDuties Boş Değil");
+            } else {
+              print('Bu çalışana ait görev bulunamadı');
+              Get.snackbar(
+                'Uyarı',
+                'Bu odada size atanmış bir görev bulunamadı.',
+                backgroundColor: Colors.orange,
+                colorText: Colors.white,
+                snackPosition: SnackPosition.BOTTOM,
+              );
+            }
+          } catch (e) {
+            print('Görev filtreleme hatası: $e');
+          }
         } else {
-          print("Duty not found for the given roomId.");
+          print('Oda için görev bulunamadı');
+          Get.snackbar(
+            'Uyarı',
+            'Bu oda için görev bulunamadı.',
+            backgroundColor: Colors.orange,
+            colorText: Colors.white,
+            snackPosition: SnackPosition.BOTTOM,
+          );
         }
       } catch (e, stacktrace) {
-        print("Error fetching dutyId: $e");
-        print("StackTrace: $stacktrace");
+        print('Görev bilgisi alınırken hata: $e');
+        print('StackTrace: $stacktrace');
+        Get.snackbar(
+          'Hata',
+          'Görev bilgisi alınırken bir hata oluştu.',
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM,
+        );
       }
     }
   }
 
+
+  Future<void> getDutyByDutyId(String dutyId) async {
+    if (_personnelRestService != null) {
+      try {
+
+        print('Gidecek Duty ID: $dutyId'); // Debug için
+
+        var queryParams = {'id': dutyId};
+        var response = await _personnelRestService!.getDutyById(queryParams);
+
+        if (response!=null) {
+          try {
+            dutyList.clear();
+            dutyList.assign(response);
+            var employeeDuties = response.employeeId.where((element) {
+              return element.id == _employeeId;
+            }).toList();
+
+            if (employeeDuties.isNotEmpty) {
+              print("employeeDuties Boş Değil");
+            } else {
+              print('Bu çalışana ait görev bulunamadı');
+              Get.snackbar(
+                'Uyarı',
+                'Bu odada size atanmış bir görev bulunamadı.',
+                backgroundColor: Colors.orange,
+                colorText: Colors.white,
+                snackPosition: SnackPosition.BOTTOM,
+              );
+            }
+          } catch (e) {
+            print('Görev filtreleme hatası: $e');
+          }
+        } else {
+          print('Oda için görev bulunamadı');
+          Get.snackbar(
+            'Uyarı',
+            'Bu oda için görev bulunamadı.',
+            backgroundColor: Colors.orange,
+            colorText: Colors.white,
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        }
+      } catch (e, stacktrace) {
+        print('Görev bilgisi alınırken hata: $e');
+        print('StackTrace: $stacktrace');
+        Get.snackbar(
+          'Hata',
+          'Görev bilgisi alınırken bir hata oluştu.',
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
+    }
+  }
+
+
+
   Future<void> uploadImage(String dutyId, File image, int imageNumber) async {
+    if (isUploading.value) {
+      print('Zaten bir yükleme işlemi devam ediyor');
+      return;
+    }
+    
     try {
+      isUploading.value = true;
+      print('Yükleme işlemi başladı');
+
+      // Dosya boyutunu kontrol et
+      final fileSize = await image.length();
+      print('Yükleme öncesi fotoğraf boyutu: ${(fileSize / 1024 / 1024).toStringAsFixed(2)} MB');
+
+      File imageToUpload = image;
+      if (fileSize > 1024 * 1024) { // 1MB'dan büyükse
+        print('Fotoğraf sıkıştırılıyor...');
+        final compressedImage = await compressImage(image);
+        if (compressedImage != null) {
+          imageToUpload = compressedImage;
+          final newSize = await imageToUpload.length();
+          print('Sıkıştırma sonrası fotoğraf boyutu: ${(newSize / 1024 / 1024).toStringAsFixed(2)} MB');
+        }
+      }
+
       var request = DutyImageBeforeRequest(
         DutyId: dutyId,
         ImageDate: DateTime.now().toIso8601String(),
         ImageNumber: imageNumber,
-        Image: image,
+        Image: imageToUpload,
       );
+
       var response = await _personnelRestService!.addDutyImageBefore(request);
+      
       if (response != null) {
-        print('Image uploaded successfully');
+        print('Resim başarıyla yüklendi');
+        if (Get.isDialogOpen ?? false) {
+          Get.back(); // Dialog'u kapat
+        }
+        print("BeforeDutyListPageGidecekID : $dutyId");
         TTDNavigator().pushToMain(BeforeDutyListPage(dutyId: dutyId));
       } else {
-        print('Failed to upload image');
+        print('Resim yükleme başarısız');
+        if (Get.isDialogOpen ?? false) {
+          Get.back(); // Hata durumunda da dialog'u kapat
+        }
+        throw Exception('Resim yükleme başarısız');
       }
     } catch (e) {
-      print('Error uploading image: $e');
+      print('Resim yükleme hatası: $e');
+      if (Get.isDialogOpen ?? false) {
+        Get.back(); // Hata durumunda da dialog'u kapat
+      }
+      rethrow;
+    } finally {
+      print('Yükleme işlemi tamamlandı');
+      isUploading.value = false;
     }
   }
 
   gotoDutyList(String dutyId) {
+    print("BeforeDutyListPageGidecekID : $dutyId");
     TTDNavigator().pushToMain(BeforeDutyListPage(dutyId: dutyId));
   }
-
-
-
 }

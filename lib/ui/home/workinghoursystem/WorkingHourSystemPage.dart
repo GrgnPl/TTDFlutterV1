@@ -52,7 +52,7 @@ class WorkingHourSystemPage extends StatelessWidget {
               SizedBox(height: 100),
               ElevatedButton(
                 onPressed: () async {
-                 workingHourSystemPageViewModel.startWork("A1");
+                 //workingHourSystemPageViewModel.startWork("A1");
                   if (_cameraService != null) {
                     String? qrResult = await _cameraService!.scan();
                     if (qrResult == null) {

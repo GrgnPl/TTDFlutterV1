@@ -89,13 +89,6 @@ class ProfileScreen extends StatelessWidget {
               },
             ),
             ListTile(
-              leading: Icon(Icons.task),
-              title: Text('Aktif Görevler'),
-              onTap: () {
-                TTDNavigator().pushToMain(CurrentDutyPage());
-              },
-            ),
-            ListTile(
               leading: Icon(Icons.warning),
               title: Text('Teknik Arıza Talebi Oluştur'),
               onTap: () {

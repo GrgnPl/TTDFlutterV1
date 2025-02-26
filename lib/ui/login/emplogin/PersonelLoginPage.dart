@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:sizer/sizer.dart';
 import 'package:ttd/ui/home/NavigationPageViewModel.dart';
 import 'package:ttd/ui/login/emplogin/PersonelLoginPageViewModel.dart';
 import 'package:flutter_multi_formatter/flutter_multi_formatter.dart';
@@ -21,10 +22,8 @@ class PersonelLoginPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     _personelLoginViewModel = Get.put(PersonelLoginPageViewModel());
-
     TextEditingController phoneController = TextEditingController();
     TextEditingController passwordController = TextEditingController();
-    EdgeInsetsGeometry padding = EdgeInsets.fromLTRB(30.0, 60.0, 30.0, 0);
 
     // Initialize the Remember Me feature
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -103,251 +102,239 @@ class PersonelLoginPage extends StatelessWidget {
     });
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        toolbarHeight: 60,
+        toolbarHeight: 8.h,
         backgroundColor: Color(0xFF172a31),
-        centerTitle: true,  // Title'ı ortalamak için yeterli
-        title: Image.asset(
-          'assets/1.png',
-          width: 100,
-          height: 100,
-        ),
         actions: [
           IconButton(
-            icon: Icon(
-              Icons.settings,
-              color: Colors.white,
-            ),
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (BuildContext context) {
-                    TextEditingController ipController = TextEditingController();
+            icon: Icon(Icons.settings, color: Colors.white),
+            iconSize: 24,
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (BuildContext context) {
+                  TextEditingController ipController = TextEditingController();
+                  _personelLoginViewModel.getServerUrl().then((lastSavedUrl) {
+                    if (lastSavedUrl != null) {
+                      ipController.text = lastSavedUrl;
+                    }
+                  });
 
-                    // Kaydedilmiş server URL'yi yükleyip TextField'a ekle
-                    _personelLoginViewModel.getServerUrl().then((lastSavedUrl) {
-                      if (lastSavedUrl != null) {
-                        ipController.text = lastSavedUrl; // Mevcut server URL'yi TextField'da göster
-                      }
-                    });
-
-                    return AlertDialog(
-                      title: Text("Ip Adresini Giriniz"),
-                      content: TextField(
-                        controller: ipController,
-                        decoration: InputDecoration(
-                          hintText: "Örnek: https://example.com:2083/api/",
-                        ),
-                        keyboardType: TextInputType.url,
+                  return AlertDialog(
+                    title: Text("Ip Adresini Giriniz"),
+                    content: TextField(
+                      controller: ipController,
+                      decoration: InputDecoration(
+                        hintText: "Örnek: https://example.com:2083/api/",
                       ),
-                      actions: [
-                        TextButton(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                          },
-                          child: Text(
-                            "İptal",
-                            style: TextStyle(color: Color(0xFF172a31)),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            String ipAddress = ipController.text;
-                            _personelLoginViewModel.saveServerUrl(ipAddress);
-                            Navigator.of(context).pop();
-                          },
-                          child: Text(
-                            "Kaydet",
-                            style: TextStyle(color: Color(0xFF172a31)),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                );
-              },
+                      keyboardType: TextInputType.url,
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Text("İptal", style: TextStyle(color: Color(0xFF172a31))),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          _personelLoginViewModel.saveServerUrl(ipController.text);
+                          Navigator.of(context).pop();
+                        },
+                        child: Text("Kaydet", style: TextStyle(color: Color(0xFF172a31))),
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
           ),
         ],
       ),
-        backgroundColor: Color(0xFF172A31),
-        body: Stack(
-            children: [
-              Align(
-                alignment: Alignment.topCenter,
-                child: Image.asset(
+      backgroundColor: Color(0xFF172A31),
+      body: Stack(
+        children: [
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 8.w),
+            child: Column(
+              children: [
+                SizedBox(height: 5.h),
+                Image.asset(
                   'assets/1.png',
-                  width: 200,
-                  height: 200,
+                  width: 45.w,
+                  height: 20.h,
                 ),
-              ),
-              Positioned.fill(
-                child: Center(
-                  child: Padding(
-                    padding: padding,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(15),
+                SizedBox(height: 3.h),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(4.w),
+                  ),
+                  padding: EdgeInsets.all(5.w),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Telefon Numarası',
+                            style: TextStyle(
+                              color: Color(0xFF5F5F61).withOpacity(0.6),
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                          padding: EdgeInsets.all(20),
-                          child: Column(
-                            children: [
-                                Row(
-                                  children: [
-                                    Text(
-                                      'Telefon Numarası',
-                                      style: TextStyle(
-                                        color: Color(0xFF5F5F61).withOpacity(0.6),
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              SizedBox(height: 10),
-                              TextField(
-                                controller: phoneController,
-                                keyboardType: TextInputType.phone,
-                                inputFormatters: [
-                                  MaskedInputFormatter('(###)-000-####')
-                                ],
-                                decoration: InputDecoration(
-                                  filled: true,
-                                  fillColor: Color(0xFFF8F8F8),
-                                  hintText: '505 111 22 33',
-                                  hintStyle: TextStyle(color: Colors.grey),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(13),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(height: 20),
-                              Row(
-                                children: [
-                                  Text(
-                                    'Şifre',
-                                    style: TextStyle(
-                                      color: Color(0xFF5F5F61).withOpacity(0.6),
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: 10),
-                              TextField(
-                                controller: passwordController,
-                                obscureText: true,
-                                decoration: InputDecoration(
-                                  filled: true,
-                                  fillColor: Color(0xFFF8F8F8),
-                                  hintText: 'Şifre',
-                                  hintStyle: TextStyle(color: Colors.grey),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(height: 20),
-                              Obx(() => Row(
-                                children: [
-                                  Checkbox(
-                                    value: _personelLoginViewModel.isRemembered.value,
-                                    onChanged: (bool? value) {
-                                      _personelLoginViewModel.setRememberMe(value ?? false);
-                                      if (value == true) {
-                                        _personelLoginViewModel.controlRemember();
-                                      }
-                                    },
-                                    checkColor: Colors.white,
-                                    activeColor: Color(0xFF2D76FF),
-                                  ),
-                                  Text(
-                                    'Beni Hatırla',
-                                    style: TextStyle(color: Colors.black,fontSize: 16),
-                                  ),
-                                ],
-                              )),
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    String phoneNumber = phoneController.text
-                                        .replaceAll(RegExp(r'[^\d]'), '');
-                                    String password = passwordController.text;
-
-                                    _personelLoginViewModel.login(
-                                        phoneNumber, password);
-
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Color(0xFF2D76FF),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 12.0,
-                                    ),
-                                    child: Text(
-                                      'Giriş Yap',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              SizedBox(height: 10),
-                              TextButton(
-                                onPressed: () {
-                                  _personelLoginViewModel.gotoForgotPass();
-                                },
-                                child: Text('Şifremi Sıfırla?'),
-                              ),
-                            ],
+                        ],
+                      ),
+                      SizedBox(height: 2.h),
+                      TextField(
+                        controller: phoneController,
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          MaskedInputFormatter('(###)-000-####')
+                        ],
+                        style: TextStyle(fontSize: 15.sp),
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Color(0xFFF8F8F8),
+                          hintText: '505 111 22 33',
+                          hintStyle: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 15.sp,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(4.w),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 4.w,
+                            vertical: 1.5.h,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                      SizedBox(height: 2.h),
+                      Row(
+                        children: [
+                          Text(
+                            'Şifre',
+                            style: TextStyle(
+                              color: Color(0xFF5F5F61).withOpacity(0.6),
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 2.h),
+                      TextField(
+                        controller: passwordController,
+                        obscureText: true,
+                        style: TextStyle(fontSize: 15.sp),
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Color(0xFFF8F8F8),
+                          hintText: 'Şifre',
+                          hintStyle: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 15.sp,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(4.w),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 4.w,
+                            vertical: 1.5.h,
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 2.h),
+                      Obx(() => Row(
+                        children: [
+                          Transform.scale(
+                            scale: 1.2,
+                            child: Checkbox(
+                              value: _personelLoginViewModel.isRemembered.value,
+                              onChanged: (bool? value) {
+                                _personelLoginViewModel.setRememberMe(value ?? false);
+                              },
+                              checkColor: Colors.white,
+                              activeColor: Color(0xFF2D76FF),
+                            ),
+                          ),
+                          Text(
+                            'Beni Hatırla',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 15.sp,
+                            ),
+                          ),
+                        ],
+                      )),
+                      SizedBox(height: 2.h),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            String phoneNumber = phoneController.text
+                                .replaceAll(RegExp(r'[^\d]'), '');
+                            String password = passwordController.text;
+                            _personelLoginViewModel.login(phoneNumber, password);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Color(0xFF2D76FF),
+                            padding: EdgeInsets.symmetric(vertical: 1.5.h),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4.w),
+                            ),
+                          ),
+                          child: Text(
+                            'Giriş Yap',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16.sp,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 2.h),
+                      TextButton(
+                        onPressed: () {
+                          _personelLoginViewModel.gotoForgotPass();
+                        },
+                        child: Text(
+                          'Şifremi Sıfırla?',
+                          style: TextStyle(fontSize: 14.sp),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              Positioned(
-                bottom: 80,
-                left: 30,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Devam ederek Hizmet Şartlarını & Gizlilik Politikasını ',
-                      style: TextStyle(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      textAlign: TextAlign.center,
-                      'kabul etmiş olursunuz',
-                      style: TextStyle(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
             ),
-      );
-    }
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 2.h,
+            child: Container(
+              color: Color(0xFF172A31),
+              padding: EdgeInsets.symmetric(
+                vertical: 2.h,
+                horizontal: 5.w,
+              ),
+              child: Text(
+                'Devam ederek Hizmet Şartlarını & Gizlilik Politikasını\nkabul etmiş olursunuz',
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

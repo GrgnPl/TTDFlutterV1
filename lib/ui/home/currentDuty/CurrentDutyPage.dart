@@ -1,4 +1,4 @@
-  import 'dart:io';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
@@ -12,101 +12,181 @@ import 'package:ttd/ui/home/profile/ProfilePageViewModel.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:ttd/utils/navigation/TTDNavigator.dart';
+import 'package:sizer/sizer.dart';
 
 import '../../../models/rest/responses/duty/dutyByBranchId/DutyData.dart';
 import '../../../models/rest/responses/profil/GetByImagesByEmployeeId.dart';
 import '../../login/LoginPage.dart';
+import '../NavigationPage.dart';
+import '../components/BottomNavigation.dart';
 import 'CurrentDutyPageViewModel.dart';
 
 class CurrentDutyPage extends StatelessWidget {
-  final DutyPageViewModel viewModel = Get.put(DutyPageViewModel());
+  final viewModel = Get.put(CurrentDutyPageViewModel());
+
+  Future<void> _refreshData() async {
+    try {
+      await viewModel.updateListView();
+    } catch (e) {
+      print('Yenileme hatası: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: Scaffold(
+    return WillPopScope(
+      onWillPop: () async {
+        TTDNavigator().pushToMain(NavigationPage(initialTab: TabItem.duty));
+        return false;
+      },
+      child: Scaffold(
         appBar: AppBar(
-          toolbarHeight: 60,
+          toolbarHeight: 8.h,
           backgroundColor: Color(0xFF172a31),
-          centerTitle: true,  // Title'ı ortalamak için yeterli
+          centerTitle: true,
           title: Image.asset(
             'assets/1.png',
-            width: 100,
-            height: 100,
+            width: 25.w,
+            height: 12.h,
+          ),
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () {
+              TTDNavigator().pushToMain(NavigationPage(initialTab: TabItem.duty));
+            },
           ),
         ),
-        body: Obx(() {
-          if (viewModel.isLoadingDutys.value) {
-            return Center(
-              child: CircularProgressIndicator(),
-            );
-          } else if (viewModel.dutyList.isEmpty) {
-            return Center(child: Text('Görev bulunamadı.'));
-          } else {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(
-                  padding: const EdgeInsets.only(top: 20.0, left: 20.0),
-                  child: Text(
-                    "Aktif Görevler",
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 15,
+        body: RefreshIndicator(
+          color: Color(0xFF172a31),
+          onRefresh: _refreshData,
+          child: Obx(() {
+            if (viewModel.isLoadingDutys.value) {
+              return Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF172a31)),
+                ),
+              );
+            }
+
+            if (viewModel.activeDuties.isEmpty) {
+              return SingleChildScrollView(
+                physics: AlwaysScrollableScrollPhysics(),
+                child: Container(
+                  height: 100.h,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.assignment_outlined, size: 15.w, color: Colors.blue),
+                        SizedBox(height: 2.h),
+                        Text(
+                          'Aktif görev bulunmamaktadır',
+                          style: TextStyle(
+                            color: Colors.blue,
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'Poppins',
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
+              );
+            }
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: EdgeInsets.all(4.w),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Divider(
-                          color: Colors.grey,
-                          height: 2,
+                      Text(
+                        "Aktif Görevler",
+                        style: TextStyle(
+                          color: Color(0xFF172a31),
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Poppins',
                         ),
                       ),
+                      SizedBox(height: 1.h),
+                      Divider(color: Colors.grey.withOpacity(0.3)),
                     ],
                   ),
                 ),
-                SizedBox(height: 10), // Başlık ile liste arasına boşluk ekleyelim
                 Expanded(
                   child: ListView.builder(
-                    itemCount: viewModel.dutyList.length,
+                    physics: AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.symmetric(horizontal: 4.w),
+                    itemCount: viewModel.activeDuties.length,
                     itemBuilder: (context, index) {
-                      DutyData? duty = viewModel.dutyList[index];
-                      String dutyTitle = duty?.dutyTitle ?? "Görev Başlığı Yok";
-                      String dutyId = duty?.id ?? "ID Yok";
-
-                      return Container(
-                        height: 60,
-                        margin: EdgeInsets.symmetric(vertical: 5, horizontal: 20),
-                        decoration: BoxDecoration(
-                          color: Color(0xFF172a31),
-                          borderRadius: BorderRadius.circular(10),
+                      var duty = viewModel.activeDuties[index];
+                      return Card(
+                        elevation: 2,
+                        margin: EdgeInsets.only(bottom: 2.h),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(2.w),
                         ),
                         child: ListTile(
+                          contentPadding: EdgeInsets.all(3.w),
                           title: Text(
-                            dutyTitle,
-                            style: TextStyle(color: Colors.white),
+                            duty?.task?.first.taskName ?? "Görev Adı: Bilinmiyor",
+                            style: TextStyle(
+                              color: Color(0xFF172a31),
+                              fontSize: 14.sp,
+                              fontWeight: FontWeight.w600,
+                              fontFamily: 'Poppins',
+                            ),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(height: 1.h),
+                              Row(
+                                children: [
+                                  Icon(Icons.description, size: 5.w, color: Colors.grey[600]),
+                                  SizedBox(width: 1.w),
+                                  Expanded(
+                                    child: Text(
+                                      duty?.dldDescription ?? 'Açıklama bulunmuyor',
+                                      style: TextStyle(
+                                        color: Colors.grey[700],
+                                        fontSize: 12.sp,
+                                        fontFamily: 'Poppins',
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          trailing: Icon(
+                            Icons.arrow_forward_ios,
+                            color: Color(0xFF172a31),
+                            size: 5.w,
                           ),
                           onTap: () {
-                            // Göreve tıklandığında yapılacak işlemler
-                            print('Görev ID: $dutyId');
-                            // Burada örneğin detay sayfasına yönlendirme yapabilirsiniz
-                            // TTDNavigator().pushToMain(GorevDetayPage(dutyId: dutyId));
+                            if (duty?.id != null) {
+                              TTDNavigator().pushToMain(
+                                DutySituationPage(dutyId: duty!.id!),
+                              );
+                            }
                           },
                         ),
                       );
                     },
                   ),
                 ),
-                SizedBox(height: 20),
               ],
             );
-          }
-        }),
+          }),
+        ),
       ),
     );
   }

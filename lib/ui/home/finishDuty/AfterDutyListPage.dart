@@ -1,22 +1,14 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
-import 'package:ttd/models/rest/responses/duty/Duty.dart';
-import 'package:ttd/models/rest/responses/duty/roomDuty/RoomDuty.dart';
+import 'package:sizer/sizer.dart';
 import 'package:ttd/ui/home/finishDuty/AfterDutyListPageViewModel.dart';
 import 'package:ttd/ui/home/finishDuty/FinishTakePhotoPageViewModel.dart';
-
-import '../../../models/rest/responses/additionaltask/Task.dart';
-import '../../../models/rest/responses/duty/dutyById/DutyByIdResponse.dart';
-import '../../../models/rest/responses/duty/roomDuty/Tasks.dart';
-
-
+import 'package:ttd/utils/navigation/TTDNavigator.dart';
 
 class AfterDutyListPage extends StatelessWidget {
   final String dutyId;
-  final takePhotoViewModel = Get.put(FinishTakePhotoPageViewModel()); // TakePhotoPageViewModel'i kullanıyoruz
+  final finishTakePhotoPageViewModel = Get.put(FinishTakePhotoPageViewModel());
 
   AfterDutyListPage({required this.dutyId});
 
@@ -24,107 +16,183 @@ class AfterDutyListPage extends StatelessWidget {
   Widget build(BuildContext context) {
     print("gelen dutyID iş bitiriş $dutyId");
     final viewModel = Get.put(AfterDutyListPageViewModel());
+    
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: 60,
+        toolbarHeight: 8.h,
         backgroundColor: Color(0xFF172a31),
-        centerTitle: true,  // Title'ı ortalamak için yeterli
+        centerTitle: true,
         title: Image.asset(
           'assets/1.png',
-          width: 100,
-          height: 100,
+          width: 25.w,
+          height: 12.h,
         ),
-        iconTheme: IconThemeData(
-          color: Colors.white, //change your color here
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.white, size: 7.w),
+          onPressed: () => TTDNavigator().pop(),
         ),
       ),
       body: FutureBuilder<void>(
-        future: takePhotoViewModel.getDutyFromRoomId(dutyId),
+        future: finishTakePhotoPageViewModel.getDutyByDutyId(dutyId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
+            return Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF172a31)),
+              ),
+            );
           } else if (snapshot.hasError) {
-            return Center(child: Text('Hata oluştu: ${snapshot.error}'));
-          } else if (takePhotoViewModel.roomInfo?.task == null || takePhotoViewModel.roomInfo!.task.isEmpty) {
-            return Center(child: Text('Görev bulunamadı.'));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 15.w, color: Colors.red),
+                  SizedBox(height: 2.h),
+                  Text(
+                    'Hata oluştu: ${snapshot.error}',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontSize: 14.sp,
+                      fontFamily: 'Poppins',
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            );
+          } else if (dutyId == null || dutyId.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.warning_amber, size: 15.w, color: Colors.orange),
+                  SizedBox(height: 2.h),
+                  Text(
+                    'Görev bulunamadı.',
+                    style: TextStyle(
+                      color: Colors.orange,
+                      fontSize: 14.sp,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+                ],
+              ),
+            );
           } else {
-            var activeTasks = takePhotoViewModel.roomInfo!.task.where((task) => task.status == true).toList();
+            var activeTasks =finishTakePhotoPageViewModel.dutyList.where((task) => task.status == true).toList();
 
             if (activeTasks.isEmpty) {
               return Center(
-                child: Text(
-                  'Bu Odaya Atanmış Görev Yoktur',
-                  style: TextStyle(color: Colors.red, fontSize: 18, fontWeight: FontWeight.bold),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.info_outline, size: 15.w, color: Colors.blue),
+                    SizedBox(height: 2.h),
+                    Text(
+                      'Bu Odaya Atanmış Görev Yoktur',
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'Poppins',
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
               );
             }
+            var gorevAdi = finishTakePhotoPageViewModel.dutyList.first.dutyTitle;
+
             return Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
+              padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 3.h),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 15),
-                    child: Text(
-                      "Yapılmış Görevler", // Görev adı gösteriliyor.
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
+                  Text(
+                    "$gorevAdi",
+                    style: TextStyle(
+                      color: Color(0xFF172a31),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16.sp,
+                      fontFamily: 'Poppins',
                     ),
                   ),
-                  SizedBox(height: 10),
+                  SizedBox(height: 2.h),
                   Expanded(
                     child: ListView.builder(
-                      itemCount: activeTasks.length,
+                      itemCount: finishTakePhotoPageViewModel.dutyList.first.task?.length ?? 0,
                       itemBuilder: (context, index) {
-                        var task = activeTasks[index];
+                        var task = finishTakePhotoPageViewModel.dutyList.first.task![index];
                         return Card(
-                          margin: EdgeInsets.all(8.0),
+                          elevation: 2,
+                          margin: EdgeInsets.only(bottom: 2.h),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(2.w),
+                          ),
                           child: ListTile(
-                            title: Text(
-                              'Görev Adı : ${task.taskName}' ?? 'Bilinmeyen Görev',
-                              style: TextStyle(color: Colors.black),
-                            ),
-                            subtitle: Text(
-                              'Görev Açıklaması : ${task.taskDescription}' ?? 'Bilinmeyen Açıklama',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                            trailing: Icon(
+                            contentPadding: EdgeInsets.all(3.w),
+                            leading: Icon(
                               Icons.check_circle,
                               color: Color(0xFF2D75FD),
+                              size: 8.w,
+                            ),
+                            title: Text(
+                              "$gorevAdi",
+                              style: TextStyle(
+                                color: Color(0xFF172a31),
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16.sp,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                            subtitle: Padding(
+                              padding: EdgeInsets.only(top: 1.h),
+                              child: Text(
+                                task.taskDescription ?? 'Açıklama yok',
+                                style: TextStyle(
+                                  color: Colors.grey[700],
+                                  fontSize: 12.sp,
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
                             ),
                           ),
                         );
                       },
                     ),
                   ),
+                  SizedBox(height: 3.h),
                   Center(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        print("Giden duty ID ${dutyId}");
-                        _showFinishTaskDialog(context, viewModel, dutyId);
+                    child: SizedBox(
+                      width: 90.w,
+                      height: 7.h,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          print("Giden duty ID ${dutyId}");
+
+                          _showFinishTaskDialog(context, viewModel, dutyId);
                         },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0xFF172a31),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Color(0xFF172a31),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(2.w),
+                          ),
+                          elevation: 3,
                         ),
-                      ),
-                      child: Container(
-                        padding: EdgeInsets.symmetric(vertical: 16.0, horizontal: 32.0),
                         child: Text(
                           'Görevi Bitir',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'Poppins',
                           ),
                         ),
                       ),
                     ),
                   ),
+                  SizedBox(height: 2.h),
                 ],
               ),
             );
@@ -137,16 +205,24 @@ class AfterDutyListPage extends StatelessWidget {
   void _showFinishTaskDialog(BuildContext context, AfterDutyListPageViewModel viewModel, String dutyId) {
     List<TextEditingController> quantityControllers = List.generate(
       viewModel.materials.length,
-          (index) => TextEditingController(text: '0'),
+      (index) => TextEditingController(text: '0'),
     );
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(2.w),
+          ),
           title: Text(
             'Oda Envanterleri',
-            style: TextStyle(fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 16.sp,
+              fontFamily: 'Poppins',
+              color: Color(0xFF172a31),
+            ),
           ),
           content: SingleChildScrollView(
             child: Column(
@@ -155,38 +231,36 @@ class AfterDutyListPage extends StatelessWidget {
                 ...viewModel.materials.map((material) {
                   int index = viewModel.materials.indexOf(material);
                   return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    padding: EdgeInsets.symmetric(vertical: 1.h),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Expanded(
                           child: Text(
-                            material.name, // Malzeme adı
+                            material.name,
                             style: TextStyle(
-                              fontSize: 18, // Ürün isminin fontunu büyüttük
-                              fontWeight: FontWeight.bold,
+                              fontSize: 14.sp,
+                              fontWeight: FontWeight.w500,
+                              fontFamily: 'Poppins',
                             ),
                           ),
                         ),
                         Row(
                           children: [
-                            ElevatedButton(
-                              onPressed: () {
+                            _buildCounterButton(
+                              Icons.remove,
+                              Colors.red,
+                              () {
                                 int currentValue = int.parse(quantityControllers[index].text);
                                 if (currentValue > 0) {
                                   currentValue--;
                                   quantityControllers[index].text = currentValue.toString();
                                 }
                               },
-                              child: Icon(Icons.remove),
-                              style: ElevatedButton.styleFrom(
-                                shape: CircleBorder(),
-                                padding: EdgeInsets.all(5), // Buton boyutunu küçülttük
-                                backgroundColor: Colors.red,
-                              ),
                             ),
+                            SizedBox(width: 2.w),
                             SizedBox(
-                              width: 40,
+                              width: 10.w,
                               child: TextField(
                                 controller: quantityControllers[index],
                                 textAlign: TextAlign.center,
@@ -194,22 +268,21 @@ class AfterDutyListPage extends StatelessWidget {
                                 decoration: InputDecoration(
                                   border: InputBorder.none,
                                 ),
-                                style: TextStyle(fontSize: 20),
-                                keyboardType: TextInputType.number,
+                                style: TextStyle(
+                                  fontSize: 14.sp,
+                                  fontFamily: 'Poppins',
+                                ),
                               ),
                             ),
-                            ElevatedButton(
-                              onPressed: () {
+                            SizedBox(width: 2.w),
+                            _buildCounterButton(
+                              Icons.add,
+                              Colors.green,
+                              () {
                                 int currentValue = int.parse(quantityControllers[index].text);
                                 currentValue++;
                                 quantityControllers[index].text = currentValue.toString();
                               },
-                              child: Icon(Icons.add),
-                              style: ElevatedButton.styleFrom(
-                                shape: CircleBorder(),
-                                padding: EdgeInsets.all(5), // Buton boyutunu küçülttük
-                                backgroundColor: Colors.green,
-                              ),
                             ),
                           ],
                         ),
@@ -220,25 +293,57 @@ class AfterDutyListPage extends StatelessWidget {
               ],
             ),
           ),
-          actions: <Widget>[
+          actions: [
             TextButton(
-              child: Text('İptal', style: TextStyle(color: Color(0xFF172a31))),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              child: Text(
+                'İptal',
+                style: TextStyle(
+                  color: Color(0xFF172a31),
+                  fontSize: 14.sp,
+                  fontFamily: 'Poppins',
+                ),
+              ),
+              onPressed: () => Navigator.of(context).pop(),
             ),
-            TextButton(
-              child: Text('Envanter Kaydet', style: TextStyle(color: Color(0xFF172a31))),
-              onPressed: () {
-                // Envanter kaydetme ve ikinci dialogu açmak için işlemi başlatıyoruz
-                _handleStockAndFinishDuty(context, viewModel, dutyId, quantityControllers);
-              },
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF172a31),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(1.w),
+                ),
+              ),
+              child: Text(
+                'Envanter Kaydet',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14.sp,
+                  fontFamily: 'Poppins',
+                ),
+              ),
+              onPressed: () => _handleStockAndFinishDuty(context, viewModel, dutyId, quantityControllers),
             ),
           ],
         );
       },
     );
   }
+
+  Widget _buildCounterButton(IconData icon, Color color, VoidCallback onPressed) {
+    return Container(
+      width: 8.w,
+      height: 8.w,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          padding: EdgeInsets.zero,
+          backgroundColor: color,
+          shape: CircleBorder(),
+        ),
+        child: Icon(icon, color: Colors.white, size: 5.w),
+      ),
+    );
+  }
+
   void _handleStockAndFinishDuty(BuildContext context, AfterDutyListPageViewModel viewModel, String dutyId, List<TextEditingController> quantityControllers) async {
     try {
       // Seçilen malzemeleri ve miktarları işliyoruz

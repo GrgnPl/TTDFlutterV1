@@ -39,6 +39,7 @@ import 'package:ttd/models/rest/responses/room/roomGetById.dart';
 import 'package:ttd/models/rest/responses/techninalerror/TechnicalErrorCompleteResponse.dart';
 import 'package:ttd/models/rest/responses/techninalerror/TechninalErrorResponse.dart';
 import 'package:ttd/models/rest/responses/version/VersionControlResponse.dart';
+import 'package:ttd/models/rest/responses/duty/dutyForNow/DutyForNowResponse.dart';
 
 import '../../data/settings/TTDSettingsRepository.dart';
 import '../../models/rest/requests/RequestBase.dart';
@@ -143,6 +144,8 @@ abstract class ITTDPersonelRestService {
   Future<RoomGetAllResponse> getAllRoom();
   Future<roomGetById> getByRoomId(Map<String, dynamic> queryParams);
 
+  Future<DutyForNowResponse> getDutyForNowByBranchAndEmpIdForPassive(Map<String, dynamic> queryParams);
+  Future<DutyForNowResponse> getDutyForNowByBranchAndEmpId(Map<String, dynamic> queryParams);
 
 }
 
@@ -604,8 +607,8 @@ class TTDPersonelRestService implements ITTDPersonelRestService {
   }
 
 
-  Future<StartDutyResponse> startDuty(Map<String, dynamic> queryParams) async {
-    var endpoint = 'Duty/StartDuty';
+  Future<StartDutyResponse>   startDuty(Map<String, dynamic> queryParams) async {
+    var endpoint = 'Duty/StartDutyWithEmployee';
     var url = await _getServerUrl(); // Dinamik olarak server URL'si alınır
     StartDutyResponse startDutyResponse = StartDutyResponse.fromJson(await RestServiceManager.call(url, endpoint, null, null, RequestType.GET, queryParams: queryParams));
     print(startDutyResponse);
@@ -735,5 +738,39 @@ class TTDPersonelRestService implements ITTDPersonelRestService {
     );
     print("Gelen Response $_stock");
     return _stock;
+  }
+
+  @override
+  Future<DutyForNowResponse> getDutyForNowByBranchAndEmpIdForPassive(Map<String, dynamic> queryParams) async {
+    var endpoint = 'Duty/GetDutyForNowByBranchAndEmpIdForPassive';
+    var url = await _getServerUrl();
+    
+    var response = await RestServiceManager.call(
+      url, 
+      endpoint, 
+      null, 
+      null, 
+      RequestType.GET,
+      queryParams: queryParams
+    );
+    
+    return DutyForNowResponse.fromJson(response);
+  }
+
+  @override
+  Future<DutyForNowResponse> getDutyForNowByBranchAndEmpId(Map<String, dynamic> queryParams) async {
+    var endpoint = 'Duty/GetDutyForNowByBranchAndEmpId';
+    var url = await _getServerUrl();
+    
+    var response = await RestServiceManager.call(
+      url, 
+      endpoint, 
+      null, 
+      null, 
+      RequestType.GET,
+      queryParams: queryParams
+    );
+    
+    return DutyForNowResponse.fromJson(response);
   }
 }

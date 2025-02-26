@@ -5,6 +5,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:ttd/ui/home/finishDuty/FinishTakePhotoPageViewModel.dart';
 import 'package:ttd/ui/home/qr/StartDutyPageViewModel.dart';
 
 import '../../../services/common/TTDCameraService.dart';
@@ -17,7 +18,7 @@ import 'FinishDutyPageViewModel.dart';
 class FinishDutyPage extends StatelessWidget {
   final ITTDCameraService? _cameraService = TTDServiceLocator().get<ITTDCameraService>();
   late FinishDutyPageViewModel _finishDutyPageViewModel;
-  final takePhotoViewModel = Get.put(TakePhotoPageViewModel()); // TakePhotoPageViewModel'i kullanıyoruz
+  final finishTakePhotoPageViewModel = Get.put(FinishTakePhotoPageViewModel()); // TakePhotoPageViewModel'i kullanıyoruz
 
   @override
   Widget build(BuildContext context) {
@@ -67,12 +68,12 @@ class FinishDutyPage extends StatelessWidget {
                     if (qrResult != null) {
                       Uri uri = Uri.parse(qrResult);
                       String? id = uri.queryParameters['id'];
-                      //Room ID Geliyor
                       if (id != null) {
                         print("ID Değeri: $id");
-                        await takePhotoViewModel.getDutyFromRoomId(id); // roomId'yi gönderiyoruz
-                        if (takePhotoViewModel.roomInfo?.status == false) {
-                          // Eğer status false ise
+                        await finishTakePhotoPageViewModel.getDutyFromRoomId(id);
+                        var gidecekDutyId = finishTakePhotoPageViewModel.roomInfo.first.id;
+                        await finishTakePhotoPageViewModel.getDutyByDutyId(gidecekDutyId!);
+                        if (finishTakePhotoPageViewModel.roomInfo.first.status == false) {
                           Fluttertoast.showToast(
                             msg: "Görev Başlatılamaz. Lütfen Yetkiliye Başvurun.",
                             toastLength: Toast.LENGTH_LONG,
@@ -82,7 +83,7 @@ class FinishDutyPage extends StatelessWidget {
                           );
                           TTDNavigator().pushToMain(HomePage()); // HomePage'e yönlendiriyoruz
                         } else {
-                          _finishDutyPageViewModel.gotoPhoto(id);
+                          _finishDutyPageViewModel.gotoPhoto(gidecekDutyId);
                         }
                       } else {
                         print("ID parametresi bulunamadı.");
@@ -90,6 +91,22 @@ class FinishDutyPage extends StatelessWidget {
                     }
                   }
 
+                 /* await finishTakePhotoPageViewModel.getDutyFromRoomId("674eb836a142dbe67cd7eb83");
+                  var gidecekDutyId = finishTakePhotoPageViewModel.roomInfo.first.id;
+                  print("gidecekDutyId : $gidecekDutyId");
+                  await finishTakePhotoPageViewModel.getDutyByDutyId(gidecekDutyId!);
+                  if (finishTakePhotoPageViewModel.roomInfo.first.status == false) {
+                    Fluttertoast.showToast(
+                      msg: "Görev Başlatılamaz. Lütfen Yetkiliye Başvurun.",
+                      toastLength: Toast.LENGTH_LONG,
+                      gravity: ToastGravity.BOTTOM,
+                      backgroundColor: Colors.red,
+                      textColor: Colors.white,
+                    );
+                    TTDNavigator().pushToMain(HomePage());
+                  } else {
+                    _finishDutyPageViewModel.gotoPhoto(gidecekDutyId);
+                  }*/
 
                 },
                 style: ElevatedButton.styleFrom(

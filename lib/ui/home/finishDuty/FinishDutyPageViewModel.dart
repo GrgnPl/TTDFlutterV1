@@ -17,7 +17,7 @@ class FinishDutyPageViewModel extends ViewModelBase {
   initPage() async{
   }
   void gotoPhoto(String id) {
-    TTDNavigator().pushToMain(FinishTakePhotoPage(roomId: id)); // id parametresini geç
+    //TTDNavigator().pushToMain(FinishTakePhotoPage(roomId: id)); // id parametresini geç
   }
 
 }

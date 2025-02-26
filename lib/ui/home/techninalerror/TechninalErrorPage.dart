@@ -5,6 +5,7 @@ import 'package:ttd/models/rest/responses/techninalerror/TechninalError.dart';
 import 'package:ttd/ui/home/qr/StartDutyPage.dart';import '../../../models/rest/responses/lostProperty/LostProperty.dart';
 
 
+import '../../../models/rest/responses/room/GetAllRoomByBranchId.dart';
 import '../../../utils/navigation/TTDNavigator.dart';
 import '../NavigationPage.dart';
 import 'TechninalErrorPageViewModel.dart';
@@ -163,25 +164,90 @@ class TechninalErrorPage extends StatelessWidget {
     );
   }
 }
+
+// Önce yeni bir SearchDelegate sınıfı oluşturalım
+class RoomSearchDelegate extends SearchDelegate<GetAllRoomByBranchId?> {
+  final List<GetAllRoomByBranchId> rooms;
+
+  RoomSearchDelegate(this.rooms);
+
+  @override
+  List<Widget> buildActions(BuildContext context) {
+    return [
+      IconButton(
+        icon: Icon(Icons.clear),
+        onPressed: () {
+          query = '';
+        },
+      ),
+    ];
+  }
+
+  @override
+  Widget buildLeading(BuildContext context) {
+    return IconButton(
+      icon: Icon(Icons.arrow_back),
+      onPressed: () {
+        close(context, null);
+      },
+    );
+  }
+
+  @override
+  Widget buildResults(BuildContext context) {
+    return buildSuggestions(context);
+  }
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    final suggestions = query.isEmpty
+        ? rooms
+        : rooms.where((room) {
+            return room.roomName?.toLowerCase().contains(query.toLowerCase()) ?? false;
+          }).toList();
+
+    return ListView.builder(
+      itemCount: suggestions.length,
+      itemBuilder: (context, index) {
+        final room = suggestions[index];
+        return ListTile(
+          title: Text(room.roomName ?? 'Bilinmeyen Oda'),
+          onTap: () {
+            close(context, room);
+          },
+        );
+      },
+    );
+  }
+}
+
 void _showLostPropertyDialog(BuildContext context) {
   final TechninalErrorPageViewModel viewModel = Get.put(TechninalErrorPageViewModel());
+  final searchController = TextEditingController();
 
   TextEditingController itemNameController = TextEditingController();
   TextEditingController descriptionController = TextEditingController();
-  var selectedRoom = ''.obs; // Seçilen oda için reaktif bir değişken
-  var isValuable = ''.obs; // Değerli mi seçeneğini reaktif hale getiriyoruz
-
-  // Dropdown menü verileri için
-  List<String> valuableOptions = ['Evet', 'Hayır'];
+  var selectedRoom = ''.obs;
+  var filteredRooms = <GetAllRoomByBranchId>[].obs;
 
   // Odaları doldurmak için
-  viewModel.getRoomsByBranchId(viewModel.branchId ?? ''); // branchId getter'ı kullanılıyor
+  viewModel.getRoomsByBranchId(viewModel.branchId ?? '').then((_) {
+    filteredRooms.assignAll(viewModel.roomList);
+  });
 
   showDialog(
     context: context,
     builder: (BuildContext context) {
       return AlertDialog(
-        title: Text('Teknik Arıza Talebi Aç'),
+        backgroundColor: Colors.white,
+        title: Text(
+          'Teknik Arıza Talebi Aç',
+          style: TextStyle(
+            color: Color(0xFF172a31),
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -189,61 +255,129 @@ void _showLostPropertyDialog(BuildContext context) {
               // Hata Başlığı
               TextField(
                 controller: itemNameController,
-                decoration: InputDecoration(labelText: 'Hata Başlığı'),
-              ),
-              SizedBox(height: 10),
-              // Hata Açıklaması (Büyütülmüş alan)
-              SizedBox(
-                height: 150,  // Görünümü büyütmek için yüksekliği ayarlıyoruz
-                child: TextField(
-                  controller: descriptionController,
-                  decoration: InputDecoration(labelText: 'Hata Açıklaması'),
-                  maxLines: null, // Satır sayısını serbest bırakıyoruz
-                  expands: true,  // Alanın tüm yüksekliği kullanmasını sağlıyor
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF172a31),
+                ),
+                decoration: InputDecoration(
+                  labelText: 'Hata Başlığı',
+                  labelStyle: TextStyle(color: Color(0xFF172a31)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Color(0xFF172a31)),
+                  ),
                 ),
               ),
-              SizedBox(height: 10),
-              // Oda seçimi
-              Obx(() {
-                if (viewModel.roomList.isEmpty) {
-                  return Text('Oda bulunamadı'); // Eğer odalar yoksa mesaj göster
-                } else {
-                  return DropdownButton<String>(
-                    isExpanded: true,
-                    value: selectedRoom.value.isEmpty ? null : selectedRoom.value,
-                    hint: Text('Bulunduğu Oda'),
-                    onChanged: (newValue) {
-                      selectedRoom.value = newValue ?? ''; // Seçilen oda değerini güncelle
-                    },
-                    items: viewModel.roomList.map((room) {
-                      return DropdownMenuItem<String>(
-                        value: room.id,
-                        child: Text(room.roomName ?? 'Bilinmeyen Oda'),
-                      );
-                    }).toList(),
-                  );
-                }
-              }),
+              SizedBox(height: 16),
+              
+              // Hata Açıklaması
+              Container(
+                height: 150,
+                child: TextField(
+                  controller: descriptionController,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF172a31),
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Hata Açıklaması',
+                    labelStyle: TextStyle(color: Color(0xFF172a31)),
+                    alignLabelWithHint: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: Color(0xFF172a31)),
+                    ),
+                  ),
+                  maxLines: null,
+                  expands: true,
+                ),
+              ),
+              SizedBox(height: 16),
+              
+              // Dropdown ve Arama
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: InkWell(
+                  onTap: () async {
+                    final selectedResult = await showSearch(
+                      context: context,
+                      delegate: RoomSearchDelegate(viewModel.roomList),
+                    );
+                    if (selectedResult != null) {
+                      selectedRoom.value = selectedResult.id ?? '';
+                    }
+                  },
+                  child: Obx(() {
+                    final selected = viewModel.roomList.firstWhereOrNull(
+                      (room) => room.id == selectedRoom.value
+                    );
+                    
+                    return Container(
+                      height: 48,
+                      child: Row(
+                        children: [
+                          Icon(Icons.search, color: Color(0xFF172a31)),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              selected?.roomName ?? 'Bulunduğu Oda',
+                              style: TextStyle(
+                                color: selected == null ? Colors.grey[600] : Color(0xFF172a31),
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                          Icon(Icons.arrow_drop_down, color: Color(0xFF172a31)),
+                        ],
+                      ),
+                    );
+                  }),
+                ),
+              ),
             ],
           ),
         ),
-        actions: <Widget>[
+        actions: [
           TextButton(
             child: Text('İptal', style: TextStyle(color: Color(0xFF172a31))),
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
+            onPressed: () => Navigator.of(context).pop(),
           ),
-          TextButton(
-            child: Text('Kaydet', style: TextStyle(color: Color(0xFF172a31))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color(0xFF172a31),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text('Kaydet', style: TextStyle(color: Colors.white)),
             onPressed: () {
-              var propertyName = itemNameController.text;
-              var propertyDesc = descriptionController.text;
-              var roomId = selectedRoom.value;
-
+              if (itemNameController.text.isEmpty || 
+                  descriptionController.text.isEmpty || 
+                  selectedRoom.value.isEmpty) {
+                Get.snackbar(
+                  'Hata',
+                  'Lütfen tüm alanları doldurunuz',
+                  backgroundColor: Colors.red,
+                  colorText: Colors.white,
+                );
+                return;
+              }
               Navigator.of(context).pop();
-
-              viewModel.addTechnicalError(propertyName, propertyDesc, roomId);
+              viewModel.addTechnicalError(
+                itemNameController.text,
+                descriptionController.text,
+                selectedRoom.value
+              );
             },
           ),
         ],

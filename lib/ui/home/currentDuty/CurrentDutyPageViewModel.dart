@@ -10,6 +10,7 @@ import '../../../models/domain/common/AuthModel.dart';
 import '../../../models/domain/common/LoginModel.dart';
 import '../../../models/rest/responses/duty/Duty.dart';
 import '../../../models/rest/responses/duty/dutyByBranchId/DutyData.dart';
+import '../../../models/rest/responses/duty/dutyForNow/DutyForNowResponse.dart';
 import '../../../rest/emp/PersonnelRestService.dart';
 import '../../../services/common/TTDApplicationService.dart';
 import '../../../utils/servicelocator/TTDServiceLocator.dart';
@@ -22,7 +23,8 @@ class CurrentDutyPageViewModel extends ViewModelBase {
   String? get employeeId => _employeeId;
   String? get branchId => _branchId;
   var isLoadingDutys = false.obs;
-  RxList<DutyData?> dutyList = <DutyData>[].obs;
+  final isLoading = false.obs;
+  final activeDuties = <DutyForNowData>[].obs;
 
   CurrentDutyPageViewModel() {
     _personnelRestService = TTDServiceLocator().get<ITTDPersonelRestService>();
@@ -32,7 +34,7 @@ class CurrentDutyPageViewModel extends ViewModelBase {
 
   void initPage() async {
     await controlRemember();
-    await updateListView();  // Kullanıcı bilgilerini ve odalarını getir
+    await fetchEmployeeInfoAndRooms();
   }
   Future<void> updateListView() async {
     await fetchEmployeeInfoAndRooms();
@@ -42,50 +44,45 @@ class CurrentDutyPageViewModel extends ViewModelBase {
   Future<void> fetchEmployeeInfoAndRooms() async {
     if (_employeeId != null) {
       await getEmployeeInfo(_employeeId!);
-      if (_branchId != null && _branchId!.isNotEmpty) {
-        await getAllDutyByBranchID(_branchId!);
+      if (_branchId != null) {
+        await getAllActiveDuties();
       }
     }
   }
 
-  Future<void> getEmployeeInfo(String id) async {
-    try {
-      var queryParams = {'id': id};
-      var response = await _personnelRestService!.getEmployeeInfo(queryParams);
-      if (response.branchId != null) {
-        _branchId = response.branchId;
-        print("Branch ID: $_branchId");
-      } else {
-        print('Branch ID boş veya geçersiz.');
-      }
-    } catch (e) {
-      print('Employee bilgisi alınamadı: $e');
+
+  Future<void> getAllActiveDuties() async {
+    if (_branchId == null || _employeeId == null) {
+      print('Branch ID veya Employee ID null. İşlem iptal edildi.');
+      return;
     }
-  }
 
-  Future<void> getAllDutyByBranchID(String branchId) async {
     try {
-      isLoadingDutys.value = true;
-      var queryParams = {'id': branchId};
-      var response = await _personnelRestService!.getDutyDetailsForDateByBranchId(queryParams);
+      isLoading.value = true;
+      var queryParams = {
+        'id': _branchId,
+        'empId': _employeeId,
+      };
 
-      if (response.listOfDuty != null && response.listOfDuty!.isNotEmpty) {
-        dutyList.assignAll(response.listOfDuty!);
+      final response = await _personnelRestService!.getDutyForNowByBranchAndEmpId(queryParams);
+      if (response.success == true && response.data != null) {
+        activeDuties.assignAll(response.data!);
+        print('Tamamlanmayan görevler yüklendi: ${activeDuties.length}');
       } else {
-        dutyList.assignAll([]);
-        print('Odalar listesi boş veya null');
+        print('API yanıtı başarısız veya data null. Response: $response');
+        activeDuties.clear();
       }
     } catch (e) {
-      print('Odalar yüklenirken hata oluştu: $e');
+      print('Tamamlanmayan görevler yüklenirken hata: $e');
+      activeDuties.clear();
     } finally {
-      isLoadingDutys.value = false;
+      isLoading.value = false;
     }
   }
 
   Future<void> controlRemember() async {
     var rememberMe = await _ittdSettingsRepository!.getSetting("RememberMe");
     if (rememberMe != null && jsonDecode(rememberMe)) {
-      // Eğer RememberMe seçilmişse AuthModel kullanılıyor
       var result = await _ittdSettingsRepository!.getSetting("AuthModel");
       if (result != null) {
         AuthModel authModel = AuthModel.fromJson(jsonDecode(result));
@@ -93,13 +90,23 @@ class CurrentDutyPageViewModel extends ViewModelBase {
         _employeeId = authModel.employeeId;
       }
     } else {
-      // Eğer RememberMe seçilmediyse loginModel kullanılacak
       LoginModel? loginModel = TTDApplicationService.loginModel;
       if (loginModel != null) {
         _employeeId = loginModel.employeeId;
       } else {
         print("LoginModel bulunamadı. Kullanıcı giriş yapmalıdır.");
-        // Burada login sayfasına yönlendirme yapılabilir.
+      }
+    }
+  }
+
+  Future<void> getEmployeeInfo(String id) async {
+    if (_personnelRestService != null) {
+      try {
+        var queryParams = {'id': id};
+        var response = await _personnelRestService!.getEmployeeInfo(queryParams);
+        _branchId = response.branchId;
+      } catch (e) {
+        print('Employee bilgisi alınamadı: $e');
       }
     }
   }

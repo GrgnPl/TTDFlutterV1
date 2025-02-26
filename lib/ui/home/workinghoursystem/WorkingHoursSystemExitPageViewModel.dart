@@ -81,7 +81,6 @@ class WorkingHourSystemPageExitViewModel extends GetxController {
         _employeeId = loginModel.employeeId;
       } else {
         print("LoginModel bulunamadı. Kullanıcı giriş yapmalıdır.");
-        // Burada login sayfasına yönlendirme yapılabilir.
       }
     }
   }

@@ -16,7 +16,7 @@ class StartDutyPageViewModel extends ViewModelBase {
   initPage() async{
   }
   void gotoPhoto(String id) {
-    TTDNavigator().pushToMain(TakePhotoPage(roomId: id)); // id parametresini geç
+    TTDNavigator().pushToMain(TakePhotoPage(dutyId: id)); // id parametresini geç
   }
 
 }

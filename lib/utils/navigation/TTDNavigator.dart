@@ -39,6 +39,10 @@ class TTDNavigator {
     ),
   ];
 
+  void pushAndRemoveUntil(Widget widget) {
+    Get.offAll(() => widget);
+  }
+
   Future<T?> push<T>(Widget widget) async {
     return await Get.to<T>(() => widget);
   }

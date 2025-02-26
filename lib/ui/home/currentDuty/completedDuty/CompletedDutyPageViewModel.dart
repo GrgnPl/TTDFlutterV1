@@ -10,13 +10,14 @@ import '../../../../models/domain/common/AuthModel.dart';
 import '../../../../models/domain/common/LoginModel.dart';
 import '../../../../models/rest/responses/duty/Duty.dart';
 import '../../../../models/rest/responses/duty/dutyByBranchId/DutyData.dart';
+import '../../../../models/rest/responses/duty/dutyForNow/DutyForNowResponse.dart';
 import '../../../../rest/emp/PersonnelRestService.dart';
 import '../../../../services/common/TTDApplicationService.dart';
 import '../../../../utils/servicelocator/TTDServiceLocator.dart';
 class CompletedDutyPageViewModel extends ViewModelBase {
-  late ITTDPersonelRestService? _personnelRestService = TTDServiceLocator().get<
-      ITTDPersonelRestService>();
-  RxList<DutyData?> dutyList = <DutyData>[].obs;
+  late ITTDPersonelRestService _personnelRestService = TTDServiceLocator().get<ITTDPersonelRestService>();
+  RxList<DutyForNowData> dutyList = <DutyForNowData>[].obs;
+  var isLoading = false.obs;
 
   late ITTDSettingsRepository? _ittdSettingsRepository = TTDServiceLocator()
       .get<ITTDSettingsRepository>();
@@ -31,15 +32,47 @@ class CompletedDutyPageViewModel extends ViewModelBase {
 
   void initPage() async {
     await controlRemember();
-    await fetchEmployeeInfoAndRooms(); // Kullanıcı bilgilerini ve odalarını getir
+    await fetchEmployeeInfoAndRooms();
   }
 
   Future<void> fetchEmployeeInfoAndRooms() async {
     if (_employeeId != null) {
       await getEmployeeInfo(_employeeId!);
       if (_branchId != null) {
-        await getAllDutyByBranchID(_branchId!);
+        await fetchCompletedTasks();
       }
+    }
+  }
+
+  Future<void> fetchCompletedTasks() async {
+    if (_branchId == null || _employeeId == null) {
+      print('Branch ID veya Employee ID null. İşlem iptal edildi.');
+      return;
+    }
+    
+    try {
+      isLoading.value = true;
+      var queryParams = {
+        'id': _branchId,
+        'empId': _employeeId,
+      };
+
+      final response = await _personnelRestService.getDutyForNowByBranchAndEmpIdForPassive(queryParams);
+      if (response.success == true && response.data != null) {
+        dutyList.assignAll(response.data!);
+        if (dutyList.isNotEmpty) {
+          print('İlk görev verisi: ${dutyList[0].toJson()}');
+        }
+        print('Tamamlanan görevler yüklendi: ${dutyList.length}');
+      } else {
+        print('API yanıtı başarısız veya data null. Response: $response');
+        dutyList.clear();
+      }
+    } catch (e) {
+      print('Tamamlanan görevler yüklenirken hata: $e');
+      dutyList.clear();
+    } finally {
+      isLoading.value = false;
     }
   }
 
@@ -73,31 +106,6 @@ class CompletedDutyPageViewModel extends ViewModelBase {
             queryParams);
         _branchId = response.branchId;
       } catch (e) {}
-    }
-  }
-
-
-  Future<void> getAllDutyByBranchID(String branchId) async {
-    try {
-      var queryParams = {'id': branchId};
-      var response = await _personnelRestService!.getDutyDetailsForDateByBranchId(
-          queryParams);
-
-      if (response.listOfDuty != null && response.listOfDuty!.isNotEmpty) {
-        // Employee ID'ye göre görevleri filtrele ve sadece tamamlanmamış görevleri al
-        var filteredDuties = response.listOfDuty!.where((duty) {
-          return duty.employeeId!.any((employee) =>
-          employee.id == _employeeId) &&
-              duty.status == false; // Sadece tamamlanmış görevler
-        }).toList();
-
-        dutyList.assignAll(
-            filteredDuties); // Tamamlanmamış görevleri listeye ekle
-      } else {
-        print('Görev listesi boş.');
-      }
-    } catch (e) {
-      print('Görevler yüklenirken hata oluştu: $e');
     }
   }
 

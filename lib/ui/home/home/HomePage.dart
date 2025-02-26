@@ -1,6 +1,3 @@
-
-
-
 import 'dart:io';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -20,8 +17,10 @@ import 'package:ttd/ui/home/currentDuty/uncompletedDuty/UnCompletedDutyPageViewM
 import 'package:ttd/ui/home/finishDuty/FinishTakePhotoPage.dart';
 import 'package:ttd/ui/home/home/HomePageViewModel.dart';
 import 'package:ttd/ui/home/notification/NotificationPage.dart';
+import 'package:ttd/ui/home/qr/StartDutyPage.dart';
 import 'package:ttd/ui/home/techninalerror/TechninalErrorPage.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:sizer/sizer.dart';
 
 import '../../../data/settings/TTDSettingsRepository.dart';
 import '../../../models/rest/responses/additionaltask/Task.dart';
@@ -37,7 +36,7 @@ import '../dutyList/BeforeDutyListPage.dart';
 import '../techninalerror/TechninalErrorPageViewModel.dart';
 
 class HomePage extends StatelessWidget {
-  final HomePageViewModel viewModel = Get.put(HomePageViewModel());
+  final HomePageViewModel viewModel;
   final TextEditingController breakDescriptionController = TextEditingController();
   final TextEditingController breakTimeController = TextEditingController();
   final TextEditingController breakDateController = TextEditingController();
@@ -45,9 +44,13 @@ class HomePage extends StatelessWidget {
   late ITTDSettingsRepository? _ittdSettingsRepository = TTDServiceLocator().get<ITTDSettingsRepository>();
   late PersonelLoginPageViewModel _personelLoginViewModel;
 
+  HomePage() : viewModel = Get.find<HomePageViewModel>();
+
   @override
   Widget build(BuildContext context) {
-    _personelLoginViewModel = Get.put(PersonelLoginPageViewModel());
+    if (!Get.isRegistered<PersonelLoginPageViewModel>()) {
+      _personelLoginViewModel = Get.put(PersonelLoginPageViewModel());
+    }
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       print('Yeni bildirim alındı: ${message.notification?.title}');
 
@@ -60,14 +63,15 @@ class HomePage extends StatelessWidget {
     });
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: 60,
+        toolbarHeight: 8.h,
         backgroundColor: Color(0xFF172a31),
-        centerTitle: true,  // Title'ı ortalamak için yeterli
+        centerTitle: true,
         title: Image.asset(
           'assets/1.png',
-          width: 100,
-          height: 100,
+          width: 25.w,
+          height: 12.h,
         ),
+        automaticallyImplyLeading: false,
         actions: [
           Stack(
             children: [
@@ -75,6 +79,7 @@ class HomePage extends StatelessWidget {
                 icon: Icon(
                   Icons.notifications,
                   color: Colors.white,
+                  size: 6.w,
                 ),
                 onPressed: () {
                   TTDNavigator().pushToMain(NotificationPage());
@@ -84,24 +89,24 @@ class HomePage extends StatelessWidget {
                 builder: (viewModel) {
                   if (viewModel.notificationCount.value > 0) {
                     return Positioned(
-                      right: 8,
-                      top: 8,
+                      right: 2.w,
+                      top: 2.w,
                       child: Container(
-                        padding: EdgeInsets.all(1),
+                        padding: EdgeInsets.all(0.5.w),
                         decoration: BoxDecoration(
                           color: Colors.red,
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(2.w),
                         ),
                         constraints: BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
+                          minWidth: 4.w,
+                          minHeight: 4.w,
                         ),
                         child: Center(
                           child: Text(
                             '${viewModel.notificationCount.value}',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 10,
+                              fontSize: 10.sp,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -117,89 +122,176 @@ class HomePage extends StatelessWidget {
           ),
         ],
       ),
-      body: FutureBuilder(
-        future: viewModel.refreshRoomDutyCounts(), // İlk yüklemede verileri yeniler
-        builder: (context, snapshot) {
-          if (viewModel.roomDutyCountLoading.value) {
-            return Center(child: CircularProgressIndicator()); // Yüklenirken gösterilecek
-          }
-
-          return WillPopScope(
-            onWillPop: () async {
-              bool shouldExit = await showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: Text('Çıkış Yap'),
-                  content: Text('Uygulamadan çıkmak istiyor musunuz?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: Text('Hayır'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      child: Text('Evet'),
-                    ),
-                  ],
-                ),
-              );
-              return shouldExit ?? false;
-            },
-            child: SingleChildScrollView(
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await viewModel.refreshData();
+        },
+        color: Color(0xFF172a31),
+        child: Obx(() => Stack(
+          children: [
+            SingleChildScrollView(
+              physics: AlwaysScrollableScrollPhysics(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  SizedBox(height: 20),
+                  SizedBox(height: 3.h),
                   buildRoomDutyCountSection(),
-                  SizedBox(height: 20),
-                  buildRoomsSection(),
-                  buildBreakRequestButton(context),
+                  SizedBox(height: 3.h),
+                  Container(
+                    margin: EdgeInsets.symmetric(horizontal: 5.w),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              "Odalar",
+                              style: TextStyle(
+                                color: Color(0xFF172a31),
+                                fontSize: 18.sp,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(width: 3.w),
+                            Expanded(
+                              child: Container(
+                                height: 5.h,
+                                child: TextField(
+                                  onChanged: (value) => viewModel.searchRooms(value),
+                                  style: TextStyle(
+                                    fontSize: 12.sp,
+                                    color: Color(0xFF172a31),
+                                    fontFamily: 'Poppins',
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText: 'Oda Ara...',
+                                    hintStyle: TextStyle(
+                                      fontSize: 12.sp,
+                                      color: Colors.grey[600],
+                                      fontFamily: 'Poppins',
+                                    ),
+                                    prefixIcon: Icon(Icons.search, size: 5.w, color: Color(0xFF172a31)),
+                                    filled: true,
+                                    fillColor: Colors.grey[100],
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(2.w),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(2.w),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(2.w),
+                                      borderSide: BorderSide(color: Color(0xFF172a31)),
+                                    ),
+                                    contentPadding: EdgeInsets.symmetric(vertical: 0),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 2.h),
+                        if (viewModel.isLoadingRooms.value)
+                          Center(
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF172a31)),
+                            ),
+                          )
+                        else if (viewModel.filteredRooms.isEmpty)
+                          Center(
+                            child: Column(
+                              children: [
+                                Icon(Icons.room_outlined, size: 15.w, color: Color(0xFF172a31)),
+                                SizedBox(height: 2.h),
+                                Text(
+                                  "Bu şubeye ait oda bulunamadı.",
+                                  style: TextStyle(
+                                    color: Color(0xFF172a31),
+                                    fontSize: 12.sp,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          ListView.builder(
+                            shrinkWrap: true,
+                            physics: NeverScrollableScrollPhysics(),
+                            itemCount: viewModel.filteredRooms.length,
+                            itemBuilder: (context, index) {
+                              var room = viewModel.filteredRooms[index];
+                              return Card(
+                                elevation: 2,
+                                margin: EdgeInsets.only(bottom: 2.h),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(2.w),
+                                ),
+                                child: ListTile(
+                                  contentPadding: EdgeInsets.all(3.w),
+                                  leading: CircleAvatar(
+                                    backgroundColor: Color(0xFF172a31),
+                                    child: Icon(Icons.room, color: Colors.white),
+                                  ),
+                                  title: Text(
+                                    room.roomName ?? "Bilinmeyen Oda",
+                                    style: TextStyle(
+                                      color: Color(0xFF172a31),
+                                      fontSize: 14.sp,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  trailing: Icon(Icons.arrow_forward_ios, 
+                                    color: Color(0xFF172a31),
+                                    size: 5.w,
+                                  ),
+                                  onTap: () => _showRoomDutyDialog(context, room),
+                                ),
+                              );
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
-          );
-        },
+            if (viewModel.isLoading.value)
+              Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF172a31)),
+                ),
+              ),
+          ],
+        )),
       ),
     );
   }
 
   Widget buildRoomDutyCountSection() {
     return Obx(() {
-      if (viewModel.roomDutyCountLoading.value) {
-        return Center(child: CircularProgressIndicator());
-      }
-
       if (viewModel.roomDutyCountError.value) {
         return Center(child: Text('Error: ${viewModel.roomDutyCountErrorMessage.value}'));
       }
-
-      int completedCount = viewModel.roomDutyCountList.isNotEmpty
-          ? viewModel.roomDutyCountList[0].completedCount ?? 0
-          : 0;
-      int notCompletedCount = viewModel.roomDutyCountList.isNotEmpty
-          ? viewModel.roomDutyCountList[0].uncompletedCount ?? 0
-          : 0;
-
-      int technicalErrorCount = viewModel.errorCountList.isNotEmpty
-          ? viewModel.errorCountList[0].completedCount ?? 0
-          : 0;
 
       int appointedCount = viewModel.roomDutyCountList.isNotEmpty
           ? viewModel.roomDutyCountList[0].appointedCount ?? 0
           : 0;
       return Container(
-        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 2.h),
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              buildDutyCard('Tamamlanan Görevler', completedCount),
-              SizedBox(width: 10),
-              buildDutyCard2('Tamamlanmayan Görevler', notCompletedCount),
-              SizedBox(width: 10),
-              buildTechnicalCard('Teknik Görevler', technicalErrorCount),
-              SizedBox(width: 10),
+              buildDutyCard('Tamamlanan Görevler', viewModel.completedTaskCount.value),
+              SizedBox(width: 3.w),
+              buildDutyCard2('Tamamlanmayan Görevler', viewModel.uncompletedTaskCount.value),
+              SizedBox(width: 3.w),
+              buildTechnicalCard('Teknik Görevler', viewModel.tehcnicalTaskCount.value),
+              SizedBox(width: 3.w),
               buildAppointedCard('Atanacak Görevler', appointedCount),
             ],
           ),
@@ -208,118 +300,122 @@ class HomePage extends StatelessWidget {
     });
   }
 
-  Widget buildRoomsSection() {
-    return Obx(() {
-      if (viewModel.isLoadingRooms.value) {
-        return Center(child: CircularProgressIndicator());
-      }
+  void _showRoomDutyDialog(BuildContext context, DutyByEmployeeId room) async {
+    List<RoomDuty> roomDuties = await viewModel.getRoomDutyWithTasks(room.id ?? "");
 
-      if (viewModel.roomList.isEmpty) {
-        return Center(child: Text("Bu şubeye ait oda bulunamadı."));
-      }
-
-      return ListView.builder(
-        shrinkWrap: true,
-        physics: NeverScrollableScrollPhysics(),
-        itemCount: viewModel.roomList.length,
-        itemBuilder: (context, index) {
-          DutyByEmployeeId room = viewModel.roomList[index];
-          String roomName = room.roomName ?? "Unknown";
-          String roomId = room.id ?? "";
-          print("Görev için gidecek oda ids'i $roomId");
-
-          return Container(
-            height: 40,
-            decoration: BoxDecoration(
-              color: Color(0xFF172a31),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            margin: EdgeInsets.symmetric(vertical: 5, horizontal: 20),
-            child: ListTile(
-              title: Text(
-                roomName,
-                style: TextStyle(color: Colors.white),
-                textAlign: TextAlign.start,
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(2.w),
+          ),
+          child: SingleChildScrollView(
+            child: Container(
+              padding: EdgeInsets.all(3.w),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.room, color: Color(0xFF172a31)),
+                      SizedBox(width: 2.w),
+                      Expanded(
+                        child: Text(
+                          room.roomName ?? "Bilinmeyen Oda",
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF172a31),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                        padding: EdgeInsets.zero,
+                        constraints: BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                  Divider(),
+                  if (roomDuties.isNotEmpty) 
+                    ...roomDuties.map((roomDuty) => Container(
+                      margin: EdgeInsets.only(bottom: 2.h),
+                      padding: EdgeInsets.all(2.w),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey[300]!),
+                        borderRadius: BorderRadius.circular(1.w),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              roomDuty.dutyTitle ?? "",
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF172a31),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 2.w),
+                          Container(
+                            width: 20.w,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Color(0xFF172a31),
+                                padding: EdgeInsets.symmetric(vertical: 1.5.h),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(1.w),
+                                ),
+                              ),
+                              onPressed: () {
+                                Navigator.pop(context);
+                                if (roomDuty.dutyStartDate == "Henüz Başlamadı") {
+                                  var gidecekRoomId = room.id;
+                                  var gidecekGorevID = roomDuty.id;
+                                  print("gidecek roomID : $gidecekRoomId gidecekGorevID : $gidecekGorevID");
+                                  TTDNavigator().pushToMain(StartDutyPage(dutyID: gidecekGorevID ?? "", roomID: gidecekRoomId ?? "",));
+                                } else {
+                                  TTDNavigator().pushToMain(FinishTakePhotoPage(dutyId: roomDuty.id ?? ""));
+                                }
+                              },
+                              child: Text(
+                                roomDuty.dutyStartDate == "Henüz Başlamadı"
+                                    ? "Göreve Başla"
+                                    : "Görevi Bitir",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12.sp,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )).toList()
+                  else
+                    Padding(
+                      padding: EdgeInsets.symmetric(vertical: 2.h),
+                      child: Text(
+                        "Görev bulunmamaktadır",
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12.sp,
+                        ),
+                      ),
+                    ),
+                  SizedBox(height: 2.h),
+                ],
               ),
-              onTap: () async {
-                RoomDuty? roomDuty = await viewModel.getRoomDutyWithTasks(roomId);
-
-                List<Tasks> activeTasks = await viewModel.getActiveTasksForRoom(roomId);
-
-                String statusText = (roomDuty?.dutyStartDate == "Henüz Başlamadı")
-                    ? "Görev Başlamadı"
-                    : "Görev Devam Ediyor";
-                print("Aktif görevlerin uzunluğu: ${activeTasks.length}");
-                for (var task in activeTasks) {
-                  print("Görev: ${task.taskName} - ${task.taskDescription}");
-                }
-                showDialog(
-                  context: context,
-                  builder: (BuildContext context) {
-                    var filteredTasks = activeTasks.where((task) => task.status == true).toList();
-                    return AlertDialog(
-                      title: Text("Aktif Görevler - $roomName"),
-                      content: filteredTasks.isNotEmpty
-                          ? SingleChildScrollView(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: filteredTasks.map((task) {
-                            return Card(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10.0),
-                              ),
-                              margin: EdgeInsets.symmetric(vertical: 5.0, horizontal: 0.0),
-                              child: ListTile(
-                                contentPadding: EdgeInsets.symmetric(horizontal: 15.0, vertical: 10.0),
-                                title: Text(task.taskName ?? ""),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(task.taskDescription ?? ""),
-                                    Text(statusText),
-                                  ],
-                                ),
-                                trailing: ElevatedButton(
-                                  onPressed: () {
-                                    if (statusText == "Görev Başlamadı") {
-                                      print("$statusText");
-                                      TTDNavigator().pushToMain(TakePhotoPage(roomId: roomId));
-                                    } else {
-                                      print("$statusText");
-                                      TTDNavigator().pushToMain(FinishTakePhotoPage(roomId: roomId));
-                                    }
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Color(0xFF172a31), // Butonun arka plan rengi
-                                  ),
-                                  child: Text(
-                                    statusText == "Görev Başlamadı" ? "İşe Başla" : "İşi Bitir",
-                                    style: TextStyle(color: Colors.white), // Buton metnini beyaz yaptık
-                                  ),
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      )
-                          : Center(child: Text("Bu Odada Aktif Görev Yoktur")),
-                      actions: [
-                        TextButton(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                          },
-                          child: Text("Kapat", style: TextStyle(color: Color(0xFF172a31))),
-                        ),
-                      ],
-                    );
-                  },
-                );
-              },
             ),
-          );
-        },
-      );
-    });
+          ),
+        );
+      },
+    );
   }
 
   Widget buildDutyCard(String title, int count) {
@@ -516,33 +612,8 @@ class HomePage extends StatelessWidget {
       ),
     );
   }
-  Widget buildBreakRequestButton(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 50),
-      child: Container(
-        width: double.infinity,
-        margin: EdgeInsets.symmetric(horizontal: 20),
-        child: ElevatedButton(
-          onPressed: () {
-            _showBreakRequestDialog(context);
-          },
-          style: ButtonStyle(
-            backgroundColor: MaterialStateProperty.all<Color>(
-                Color(0xFF172a31)),
-          ),
-          child: Text(
-            'Mola talebi oluştur',
-            style: TextStyle(
-              fontSize: 15,
-              color: Colors.white,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
-  void _showBreakRequestDialog(BuildContext context) {
+  void showBreakRequestDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -674,6 +745,4 @@ class HomePage extends StatelessWidget {
       },
     );
   }
-
-
 }

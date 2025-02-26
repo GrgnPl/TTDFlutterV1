@@ -1,5 +1,3 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get/get_core/src/get_main.dart';
@@ -9,6 +7,7 @@ import 'package:ttd/ui/home/profile/ProfilePage.dart';
 
 import '../../../models/rest/responses/duty/Duty.dart';
 import '../../../models/rest/responses/lostProperty/LostProperty.dart';
+import '../../../models/rest/responses/room/GetAllRoomByBranchId.dart';
 import '../../../models/rest/responses/room/Room.dart';
 import '../../../utils/navigation/TTDNavigator.dart';
 import '../home/HomePageViewModel.dart';
@@ -184,26 +183,49 @@ void _showLostPropertyDialog(BuildContext context) {
               ),
               SizedBox(height: 10),
               // Oda seçimi
-              Obx(() {
-                if (viewModel.roomList.isEmpty) {
-                  return Text('Oda bulunamadı'); // Eğer odalar yoksa mesaj göster
-                } else {
-                  return DropdownButton<String>(
-                    isExpanded: true,
-                    value: selectedRoom.value.isEmpty ? null : selectedRoom.value,
-                    hint: Text('Bulunduğu Oda'),
-                    onChanged: (newValue) {
-                      selectedRoom.value = newValue ?? ''; // Seçilen oda değerini güncelle
-                    },
-                    items: viewModel.roomList.map((room) {
-                      return DropdownMenuItem<String>(
-                        value: room.id,
-                        child: Text(room.roomName ?? 'Bilinmeyen Oda'),
-                      );
-                    }).toList(),
-                  );
-                }
-              }),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: InkWell(
+                  onTap: () async {
+                    final selectedResult = await showSearch(
+                      context: context,
+                      delegate: RoomSearchDelegate(viewModel.roomList.toList()),
+                    );
+                    if (selectedResult != null) {
+                      selectedRoom.value = selectedResult.id ?? '';
+                    }
+                  },
+                  child: Obx(() {
+                    final selected = viewModel.roomList.firstWhereOrNull(
+                      (room) => room.id == selectedRoom.value
+                    );
+                    
+                    return Container(
+                      height: 48,
+                      child: Row(
+                        children: [
+                          Icon(Icons.search, color: Color(0xFF172a31)),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              selected?.roomName ?? 'Bulunduğu Oda',
+                              style: TextStyle(
+                                color: selected == null ? Colors.grey[600] : Color(0xFF172a31),
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                          Icon(Icons.arrow_drop_down, color: Color(0xFF172a31)),
+                        ],
+                      ),
+                    );
+                  }),
+                ),
+              ),
               SizedBox(height: 10),
               // Eşya değerli mi? dropdown (başlangıçta null olacak)
               Obx(() {
@@ -252,4 +274,59 @@ void _showLostPropertyDialog(BuildContext context) {
       );
     },
   );
+}
+
+class RoomSearchDelegate extends SearchDelegate<GetAllRoomByBranchId?> {
+  final List<GetAllRoomByBranchId> rooms;
+
+  RoomSearchDelegate(this.rooms);
+
+  @override
+  List<Widget> buildActions(BuildContext context) {
+    return [
+      IconButton(
+        icon: Icon(Icons.clear),
+        onPressed: () {
+          query = '';
+        },
+      ),
+    ];
+  }
+
+  @override
+  Widget buildLeading(BuildContext context) {
+    return IconButton(
+      icon: Icon(Icons.arrow_back),
+      onPressed: () {
+        close(context, null);
+      },
+    );
+  }
+
+  @override
+  Widget buildResults(BuildContext context) {
+    return buildSuggestions(context);
+  }
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    final suggestions = query.isEmpty
+        ? rooms
+        : rooms.where((room) {
+            return room.roomName?.toLowerCase().contains(query.toLowerCase()) ?? false;
+          }).toList();
+
+    return ListView.builder(
+      itemCount: suggestions.length,
+      itemBuilder: (context, index) {
+        final room = suggestions[index];
+        return ListTile(
+          title: Text(room.roomName ?? 'Bilinmeyen Oda'),
+          onTap: () {
+            close(context, room);
+          },
+        );
+      },
+    );
+  }
 }
