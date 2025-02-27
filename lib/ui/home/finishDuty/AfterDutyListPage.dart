@@ -138,7 +138,7 @@ class AfterDutyListPage extends StatelessWidget {
                               size: 8.w,
                             ),
                             title: Text(
-                              "$gorevAdi",
+                              task.taskName?? 'Başlık Yok',
                               style: TextStyle(
                                 color: Color(0xFF172a31),
                                 fontWeight: FontWeight.w600,
@@ -152,7 +152,7 @@ class AfterDutyListPage extends StatelessWidget {
                                 task.taskDescription ?? 'Açıklama yok',
                                 style: TextStyle(
                                   color: Colors.grey[700],
-                                  fontSize: 12.sp,
+                                  fontSize: 13.sp,
                                   fontFamily: 'Poppins',
                                 ),
                               ),

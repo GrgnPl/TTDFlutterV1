@@ -93,7 +93,7 @@ class TechninalErrorTakeImagePage extends StatelessWidget {
       final File file = File(pickedFile.path);
       print("Çekilen Fotoğraf Yolu: ${file.path}");
       // Fotoğrafı yüklemek için kullanabilirsiniz
-      await viewModel.uploadImage(TechnicalErrorId, file);
+      await viewModel.firstuploadImage(TechnicalErrorId, file);
     } else {
       print("Fotoğraf seçilmedi.");
     }

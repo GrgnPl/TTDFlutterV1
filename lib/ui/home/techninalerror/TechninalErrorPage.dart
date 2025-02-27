@@ -13,7 +13,8 @@ import 'TechninalErrorPageViewModel.dart';
 
 class TechninalErrorPage extends StatelessWidget {
   final TechninalErrorPageViewModel viewModel = Get.put(TechninalErrorPageViewModel());
-
+  TextEditingController descriptionController2 = TextEditingController();
+  var desc= "";
   @override
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -114,7 +115,32 @@ class TechninalErrorPage extends StatelessWidget {
                                       children: [
                                         Text("Teknik Görevi Bitirmek İstiyor Musunuz?",style: TextStyle(
                                           fontSize: 16
-                                        ),)
+                                        ),),
+                                        SizedBox(height: 16),
+                                        Container(
+                                          height: 150,
+                                          child: TextField(
+                                            controller: descriptionController2,
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Color(0xFF172a31),
+                                            ),
+                                            decoration: InputDecoration(
+                                              labelText: 'Açıklaması',
+                                              labelStyle: TextStyle(color: Color(0xFF172a31)),
+                                              alignLabelWithHint: true,
+                                              border: OutlineInputBorder(
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              focusedBorder: OutlineInputBorder(
+                                                borderRadius: BorderRadius.circular(8),
+                                                borderSide: BorderSide(color: Color(0xFF172a31)),
+                                              ),
+                                            ),
+                                            maxLines: null,
+                                            expands: true,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                     actions: [
@@ -129,7 +155,8 @@ class TechninalErrorPage extends StatelessWidget {
                                       ),
                                       TextButton(
                                         onPressed: () {
-                                          viewModel.finishTechnicalDuty(technicalDutyId!);
+                                          desc = descriptionController2.text.toString();
+                                          viewModel.finishTechnicalDuty(technicalDutyId!,desc);
                                         },
                                         child: Text(
                                           "Teknik Görevi Bitir",

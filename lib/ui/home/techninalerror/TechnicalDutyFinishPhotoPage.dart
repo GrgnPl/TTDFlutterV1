@@ -14,10 +14,12 @@ CameraType selectedCamera = CameraType.back;
 class TechnicalDutyFinishPhotoPage extends StatelessWidget {
   final String TechnicalErrorId;
   final String employeeId;
+  final String? desc;
+
   final picker = ImagePicker();
   final viewModel = Get.put(TechninalErrorTakeImagePageViewModel());
 
-  TechnicalDutyFinishPhotoPage({required this.TechnicalErrorId,required this.employeeId});
+  TechnicalDutyFinishPhotoPage({required this.TechnicalErrorId,required this.employeeId,this.desc});
 
   @override
   Widget build(BuildContext context) {
@@ -91,8 +93,7 @@ class TechnicalDutyFinishPhotoPage extends StatelessWidget {
     if (pickedFile != null) {
       final File file = File(pickedFile.path);
       print("Çekilen Fotoğraf Yolu: ${file.path}");
-      // Fotoğrafı yüklemek için kullanabilirsiniz
-      await viewModel.uploadImage(TechnicalErrorId, file);
+      await viewModel.lastuploadImage(TechnicalErrorId, file,employeeId,desc!);
     } else {
       print("Fotoğraf seçilmedi.");
     }

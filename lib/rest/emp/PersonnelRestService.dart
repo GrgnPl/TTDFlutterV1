@@ -120,8 +120,9 @@ abstract class ITTDPersonelRestService {
   ///Technical Error
   Future<TechninalErrorResponse> getTechnicalErrorByDeparmentId(Map<String, dynamic> queryParams);
   Future<LostPropertyGetAll> addTechnicalError(TechnicalErrorRequest technicalErrorRequest);
-  Future<AddEmployeeResponse> addTechnicalErrorImageFirst(TechnicalErrorImageRequest request);
+  Future<LostPropertyGetAll> updateTechnicalError(TechnicalErrorRequest technicalErrorRequest);
   Future<AddEmployeeResponse> addTechnicalErrorImageLast(TechnicalErrorImageRequest request);
+  Future<AddEmployeeResponse> addTechnicalErrorImageFirst(TechnicalErrorImageRequest request);
   Future<TechnicalErrorCompleteResponse> finishTechnicalDuty(Map<String, dynamic> queryParams);
 
 
@@ -325,6 +326,16 @@ class TTDPersonelRestService implements ITTDPersonelRestService {
   Future<LostPropertyGetAll> addTechnicalError(
       TechnicalErrorRequest technicalErrorRequest) async {
     var endpoint = 'TechninalError/TechniclErrorMobileAdd';
+    var url = await _getServerUrl(); // Dinamik olarak server URL'si alınır
+    LostPropertyGetAll lostPropertyGetAll =
+    LostPropertyGetAll.fromJson(await RestServiceManager.call(
+        url, endpoint, null, technicalErrorRequest, RequestType.POST));
+    return lostPropertyGetAll;
+  }
+
+  Future<LostPropertyGetAll> updateTechnicalError(
+      TechnicalErrorRequest technicalErrorRequest) async {
+    var endpoint = 'TechninalError/TechnicalErrorUpdate';
     var url = await _getServerUrl(); // Dinamik olarak server URL'si alınır
     LostPropertyGetAll lostPropertyGetAll =
     LostPropertyGetAll.fromJson(await RestServiceManager.call(

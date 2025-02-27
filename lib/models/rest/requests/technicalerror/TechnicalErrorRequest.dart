@@ -7,6 +7,7 @@ class TechnicalErrorRequest extends RequestBase {
   String? complecetedDate;
   String? employeeId;
   String? departmentId;
+  String? description;
 
 
   TechnicalErrorRequest({
@@ -15,7 +16,8 @@ class TechnicalErrorRequest extends RequestBase {
     this.roomId,
     this.complecetedDate,
     this.employeeId,
-    this.departmentId
+    this.departmentId,
+    this.description
   });
 
   @override
@@ -27,6 +29,7 @@ class TechnicalErrorRequest extends RequestBase {
     if (complecetedDate != null) json['complecetedDate'] = complecetedDate;
     if (employeeId != null) json['employeeId'] = employeeId;
     if (departmentId != null) json['departmentId'] = departmentId;
+    if (description != null) json['description'] = description;
 
     return json;
   }
@@ -38,6 +41,8 @@ class TechnicalErrorRequest extends RequestBase {
         'errorDescription: $errorDescription, '
         'roomId: $roomId,'
         'complecetedDate: $complecetedDate,'
-        'employeeId: $employeeId }';
+        'employeeId: $employeeId,'
+        'departmentId: $departmentId,'
+        'description: $description}';
   }
 }

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:ttd/models/rest/requests/technicalerror/TechnicalErrorImageRequest.dart';
+import 'package:ttd/models/rest/requests/technicalerror/TechnicalErrorRequest.dart';
 import 'package:ttd/ui/home/lostProperty/LostPropertyPage.dart';
 import 'package:ttd/ui/home/techninalerror/TechninalErrorPage.dart';
 import 'package:ttd/utils/navigation/TTDNavigator.dart';
@@ -21,10 +22,9 @@ class TechninalErrorTakeImagePageViewModel extends ViewModelBase {
   }
 
   initPage() async {
-    // Gerekirse başlangıç ayarları
   }
 
-  Future<void> uploadImage(String TechnicalErrorId, File image) async {
+  Future<void> firstuploadImage(String TechnicalErrorId, File image) async {
     print('Uploading image for Property ID: $TechnicalErrorId');
     if (_personnelRestService != null) {
       try {
@@ -44,7 +44,7 @@ class TechninalErrorTakeImagePageViewModel extends ViewModelBase {
             backgroundColor: response != null ? Colors.green : Colors.red,
             textColor: Colors.white,
           );
-          TTDNavigator().pushToMain(TechninalErrorPage());
+          TTDNavigator().push(TechninalErrorPage());
           print('Image uploaded successfully');
         } else {
           print('Image upload failed');
@@ -57,38 +57,48 @@ class TechninalErrorTakeImagePageViewModel extends ViewModelBase {
     }
   }
 
-  Future<void> uploadImageLast(String TechnicalErrorId, File image,String employeeId) async {
+  Future<void> lastuploadImage(String TechnicalErrorId, File image,String employeeId,String desc) async {
     print('Uploading image for Property ID: $TechnicalErrorId');
     if (_personnelRestService != null) {
-      try {
-        var request = TechnicalErrorImageRequest(
-          TechnicalErrorId: TechnicalErrorId,
-          Image: image,
-        );
-        print('AddTechnicalImageAdd created: ErrorID: ${request.TechnicalErrorId}, Image: ${request.Image}');
-        var response = await _personnelRestService!.addTechnicalErrorImageLast(request);
-        if (response != null) {
-          Fluttertoast.showToast(
-            msg: response != null
-                ? "Başarıyla Fotoğraf Yüklendi Lütfen Bekleyin."
-                : "Fotoğraf Yükleme Sırasında Bir Hata Oluştu.Lütfen Tekrar Deneyin.",
-            toastLength: Toast.LENGTH_SHORT,
-            gravity: ToastGravity.BOTTOM,
-            backgroundColor: response != null ? Colors.green : Colors.red,
-            textColor: Colors.white,
+
+      var technicalErrorRequest = TechnicalErrorRequest(
+        description: desc
+      );
+      var response = _personnelRestService!.updateTechnicalError(technicalErrorRequest);
+      if(response != null)
+      {
+        try {
+          var request = TechnicalErrorImageRequest(
+            TechnicalErrorId: TechnicalErrorId,
+            Image: image,
           );
-          finishTechnicalDuty(TechnicalErrorId,employeeId);
-          print('Image uploaded successfully');
-        } else {
-          print('Image upload failed');
+          print('AddTechnicalImageAdd created: ErrorID: ${request.TechnicalErrorId}, Image: ${request.Image}');
+          var response = await _personnelRestService!.addTechnicalErrorImageLast(request);
+          if (response != null) {
+            Fluttertoast.showToast(
+              msg: response != null
+                  ? "Başarıyla Fotoğraf Yüklendi Lütfen Bekleyin."
+                  : "Fotoğraf Yükleme Sırasında Bir Hata Oluştu.Lütfen Tekrar Deneyin.",
+              toastLength: Toast.LENGTH_SHORT,
+              gravity: ToastGravity.BOTTOM,
+              backgroundColor: response != null ? Colors.green : Colors.red,
+              textColor: Colors.white,
+            );
+            await finishTechnicalDuty(TechnicalErrorId,employeeId);
+            print('Image uploaded successfully');
+          } else {
+            print('Image upload failed');
+          }
+        } catch (e) {
+          print('Image upload error: $e');
         }
-      } catch (e) {
-        print('Image upload error: $e');
       }
     } else {
       print('PersonnelRestService null');
     }
   }
+
+
 
   Future<void> finishTechnicalDuty(String dutyID,String employeeID) async {
     if (_personnelRestService != null) {
@@ -96,9 +106,9 @@ class TechninalErrorTakeImagePageViewModel extends ViewModelBase {
         if(employeeID != null)
         {
           var queryParams = {'id': dutyID, 'employeeId' : employeeID};
-          print("${queryParams}");
+          print("finistechnicalduty params : ${queryParams}");
           var response = await _personnelRestService!.finishTechnicalDuty(queryParams);
-          print('Teknik Görev Bitirme yanıtı: $response');
+          print("finishtechnicalduty response: $response");
           Fluttertoast.showToast(
             msg: "Teknik Görev Başarıyla Bitirildi...",
             toastLength: Toast.LENGTH_SHORT,

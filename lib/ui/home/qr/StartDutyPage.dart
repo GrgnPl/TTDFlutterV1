@@ -109,19 +109,38 @@ class StartDutyPage extends StatelessWidget {
                     }
                   }
 
-                  /*if (takePhotoViewModel.dutyList.first.status == false) {
-                    Fluttertoast.showToast(
-                      msg: "Görev Başlatılamaz. Lütfen Yetkiliye Başvurun.",
-                      toastLength: Toast.LENGTH_LONG,
-                      gravity: ToastGravity.BOTTOM,
-                      backgroundColor: Colors.red,
-                      textColor: Colors.white,
-                    );
-                    TTDNavigator().pushToMain(HomePage()); // HomePage'e yönlendiriyoruz
-                  } else {
-                    _startDutyPageViewModel.gotoPhoto(dutyID!);
+                  /*if(dutyID != null)
+                  {
+                    await takePhotoViewModel.getDutyByDutyIdForQr(dutyID!);
+                  }
+                  else
+                  {
+                    if(roomID != null)
+                    {
+                      await takePhotoViewModel.getDutyFromRoomIdforQR(roomID!);
+                    }
+                    else
+                    {
+                      await takePhotoViewModel.getDutyFromRoomId("674eb85ea142dbe67cd7eb84");
+                      var gidecekDutyId = takePhotoViewModel.roomInfo.first.id;
+                      await takePhotoViewModel.getDutyByDutyId(gidecekDutyId!);
+                      if (takePhotoViewModel.dutyList.first.status == false) {
+                        Fluttertoast.showToast(
+                          msg: "Görev Başlatılamaz. Lütfen Yetkiliye Başvurun.",
+                          toastLength: Toast.LENGTH_LONG,
+                          gravity: ToastGravity.BOTTOM,
+                          backgroundColor: Colors.red,
+                          textColor: Colors.white,
+                        );
+                        TTDNavigator().pushToMain(HomePage());
+                      } else {
+                        _startDutyPageViewModel.gotoPhoto(gidecekDutyId);
+                      }
+                    }
                   }*/
-                  //_startDutyPageViewModel.gotoPhoto("67b7a6643d13b0f88116f4a9");
+
+
+
 
                 },
                 style: ElevatedButton.styleFrom(

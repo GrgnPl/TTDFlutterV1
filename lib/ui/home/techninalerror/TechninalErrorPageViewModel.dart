@@ -152,10 +152,12 @@ class TechninalErrorPageViewModel extends ViewModelBase {
       var queryParams = {'id': _departmentId!};
       var response = await _personnelRestService.getTechnicalErrorByDeparmentId(queryParams);
       if (response != null) {
-        print("response ${response.listOfTechnicalError}");
+        print("response TechnicalError ${response.listOfTechnicalError}");
         List<TechninalError> filteredList = response.listOfTechnicalError!
-            .where((item) => item.departmentId == _departmentName)
+            .where((item) => item.employeeName == _empName && item.status == false)
             .toList();
+
+
         technicalErrorList.assignAll(filteredList);
         print("gelenFiltreliData ${filteredList}");
         return filteredList;
@@ -172,8 +174,12 @@ class TechninalErrorPageViewModel extends ViewModelBase {
     }
   }
 
-  Future<void> finishTechnicalDuty(String dutyID) async {
-    TTDNavigator().pushToMain(TechnicalDutyFinishPhotoPage(TechnicalErrorId: dutyID,employeeId: _employeeId!));
+  Future<void> startTechnicalDuty(String dutyID) async {
+    TTDNavigator().pushToMain(TechninalErrorTakeImagePage(TechnicalErrorId: dutyID));
+  }
+
+  Future<void> finishTechnicalDuty(String dutyID, String desc) async {
+    TTDNavigator().pushToMain(TechnicalDutyFinishPhotoPage(TechnicalErrorId: dutyID,employeeId: _employeeId!,desc: desc,));
   }
 
   addTechnicalError(String errortitle, String errordescription, String selectedRoom) async {
@@ -190,7 +196,7 @@ class TechninalErrorPageViewModel extends ViewModelBase {
       );
       var response = await _personnelRestService!.addTechnicalError(technicalErrorRequest);
 
-      if (response != null) {
+      if (response != null && response.success == true) {
         Fluttertoast.showToast(
           msg: "Başarıyla Talep Oluşturuldu Lütfen Bekleyin.",
           toastLength: Toast.LENGTH_SHORT,

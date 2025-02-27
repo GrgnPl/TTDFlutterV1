@@ -22,6 +22,7 @@ import '../../../utils/navigation/TTDNavigator.dart';
 import '../../../utils/servicelocator/TTDServiceLocator.dart';
 import '../../ViewModelBase.dart';
 import '../dutyList/BeforeDutyListPage.dart';
+import 'TakePhotoPage.dart';
 
 class TakePhotoPageViewModel extends ViewModelBase {
   late ITTDPersonelRestService? _personnelRestService = TTDServiceLocator().get<ITTDPersonelRestService>();
@@ -188,6 +189,62 @@ class TakePhotoPageViewModel extends ViewModelBase {
     }
   }
 
+  Future<void> getDutyFromRoomIdforQR(String roomId) async {
+    if (_personnelRestService != null) {
+      try {
+
+        print('Gidecek Room ID: $roomId'); // Debug için
+        print("employeeIdPHoto : $_employeeId");
+        var queryParams = {'id': roomId};
+        var response = await _personnelRestService!.getDutyFromRoomId(queryParams);
+
+        if (response!=null) {
+          try {
+            var roomDuties = response.listOfRoomDuty?.where((duty) =>
+            duty.id?.isNotEmpty == true && duty.employeeName!.any((employee) => employee.id == _employeeId) ?? false).toList();
+            roomInfo.clear();
+            roomInfo.assignAll(roomDuties!);
+            print(roomDuties);
+            if (roomDuties!.isNotEmpty) {
+              print("roomDuties Boş Değil");
+              TTDNavigator().pushToMain(TakePhotoPage(dutyId:dutyId! ));
+            } else {
+              print('Bu çalışana ait görev bulunamadı');
+              Get.snackbar(
+                'Uyarı',
+                'Bu odada size atanmış bir görev bulunamadı.',
+                backgroundColor: Colors.orange,
+                colorText: Colors.white,
+                snackPosition: SnackPosition.BOTTOM,
+              );
+            }
+          } catch (e) {
+            print('Görev filtreleme hatası: $e');
+          }
+        } else {
+          print('Oda için görev bulunamadı');
+          Get.snackbar(
+            'Uyarı',
+            'Bu oda için görev bulunamadı.',
+            backgroundColor: Colors.orange,
+            colorText: Colors.white,
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        }
+      } catch (e, stacktrace) {
+        print('Görev bilgisi alınırken hata: $e');
+        print('StackTrace: $stacktrace');
+        Get.snackbar(
+          'Hata',
+          'Görev bilgisi alınırken bir hata oluştu.',
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
+    }
+  }
+
 
   Future<void> getDutyByDutyId(String dutyId) async {
     if (_personnelRestService != null) {
@@ -208,6 +265,63 @@ class TakePhotoPageViewModel extends ViewModelBase {
 
             if (employeeDuties.isNotEmpty) {
               print("employeeDuties Boş Değil");
+            } else {
+              print('Bu çalışana ait görev bulunamadı');
+              Get.snackbar(
+                'Uyarı',
+                'Bu odada size atanmış bir görev bulunamadı.',
+                backgroundColor: Colors.orange,
+                colorText: Colors.white,
+                snackPosition: SnackPosition.BOTTOM,
+              );
+            }
+          } catch (e) {
+            print('Görev filtreleme hatası: $e');
+          }
+        } else {
+          print('Oda için görev bulunamadı');
+          Get.snackbar(
+            'Uyarı',
+            'Bu oda için görev bulunamadı.',
+            backgroundColor: Colors.orange,
+            colorText: Colors.white,
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        }
+      } catch (e, stacktrace) {
+        print('Görev bilgisi alınırken hata: $e');
+        print('StackTrace: $stacktrace');
+        Get.snackbar(
+          'Hata',
+          'Görev bilgisi alınırken bir hata oluştu.',
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
+    }
+  }
+
+  Future<void> getDutyByDutyIdForQr(String dutyId) async {
+    if (_personnelRestService != null) {
+      try {
+
+        print('Gidecek Duty ID: $dutyId'); // Debug için
+
+        var queryParams = {'id': dutyId};
+        var response = await _personnelRestService!.getDutyById(queryParams);
+
+        if (response!=null) {
+          try {
+            dutyList.clear();
+            dutyList.assign(response);
+            var employeeDuties = response.employeeId.where((element) {
+              return element.id == _employeeId;
+            }).toList();
+
+            if (employeeDuties.isNotEmpty) {
+              print("employeeDuties Boş Değil");
+              TTDNavigator().pushToMain(TakePhotoPage(dutyId: dutyId));
             } else {
               print('Bu çalışana ait görev bulunamadı');
               Get.snackbar(
