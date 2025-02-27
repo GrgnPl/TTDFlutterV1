@@ -2,4 +2,5 @@
 
 Tidy Tracking Device Flutter App
   -Collaborators:
-    Burak Aydın
+    Burak Aydın MOBİLE
+    Ozan Çelik WEB
